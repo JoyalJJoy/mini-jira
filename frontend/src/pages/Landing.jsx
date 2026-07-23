@@ -1,9 +1,9 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearToken } from '../api'
 import {
   CheckCircle, Users, MessageSquare, Layout,
-  ArrowRight, Sparkles, Zap, Star,
+  ArrowRight, Sparkles, Zap,
 } from 'lucide-react'
 import useScrollReveal from '../hooks/useScrollReveal'
 
@@ -40,26 +40,70 @@ const stats = [
   { value: 'No setup', label: 'Instant workspace' },
 ]
 
-// ── Background decoration ─────────────────────────────────────────
+// ── Mouse-responsive floating orbs ───────────────────────────────
 
-function BgOrbs() {
+function BgOrbs({ mouse }) {
+  const x = mouse?.x ?? 0
+  const y = mouse?.y ?? 0
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent blur-3xl" />
-      <div className="absolute top-1/3 -right-40 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-violet-500/10 via-purple-600/5 to-transparent blur-3xl" />
-      <div className="absolute bottom-1/4 left-1/3 w-[300px] h-[300px] rounded-full bg-gradient-to-br from-emerald-400/8 to-teal-500/3 blur-3xl" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-slate-800/30 to-transparent blur-3xl" />
+      <div
+        className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent blur-3xl transition-transform duration-500 ease-out"
+        style={{
+          transform: `translate(${x * -15}px, ${y * -15}px)`,
+        }}
+      />
+      <div
+        className="absolute top-1/3 -right-40 w-[400px] h-[400px] rounded-full bg-gradient-to-br from-violet-500/10 via-purple-600/5 to-transparent blur-3xl transition-transform duration-700 ease-out"
+        style={{
+          transform: `translate(${x * 20}px, ${y * -10}px)`,
+        }}
+      />
+      <div
+        className="absolute bottom-1/4 left-1/3 w-[300px] h-[300px] rounded-full bg-gradient-to-br from-emerald-400/8 to-teal-500/3 blur-3xl transition-transform duration-600 ease-out"
+        style={{
+          transform: `translate(${x * -12}px, ${y * 18}px)`,
+        }}
+      />
+      <div
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-gradient-to-br from-slate-800/30 to-transparent blur-3xl transition-transform duration-800 ease-out"
+        style={{
+          transform: `translate(calc(-50% + ${x * 8}px), calc(-50% + ${y * 8}px))`,
+        }}
+      />
     </div>
   )
 }
 
-function GridBg() {
+// ── Grid with subtle parallax ────────────────────────────────────
+
+function GridBg({ mouse }) {
+  const x = mouse?.x ?? 0
+  const y = mouse?.y ?? 0
+
   return (
     <div
-      className="absolute inset-0 opacity-[0.03]"
+      className="absolute inset-0 opacity-[0.03] transition-transform duration-700 ease-out"
       style={{
         backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
         backgroundSize: '60px 60px',
+        transform: `perspective(600px) rotateX(${y * 0.5}deg) rotateY(${x * -0.5}deg)`,
+      }}
+    />
+  )
+}
+
+// ── Mouse-follow spotlight glow ───────────────────────────────────
+
+function GlowFollow({ mouse, containerRef }) {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 transition-[background] duration-300 ease-out"
+      style={{
+        background: mouse
+          ? `radial-gradient(600px circle at ${mouse.x * 50 + 50}% ${mouse.y * 50 + 50}%, rgba(59,130,246,0.06) 0%, transparent 70%)`
+          : 'transparent',
       }}
     />
   )
@@ -146,13 +190,31 @@ function StatBar() {
 
 export default function Landing() {
   const navigate = useNavigate()
+  const heroRef = useRef(null)
+  const [mouse, setMouse] = useState(null)
+
+  // Track mouse position relative to viewport (normalised -1 to 1)
+  useEffect(() => {
+    const handleMouse = (e) => {
+      setMouse({
+        x: (e.clientX / window.innerWidth - 0.5) * 2,
+        y: (e.clientY / window.innerHeight - 0.5) * 2,
+      })
+    }
+    window.addEventListener('mousemove', handleMouse, { passive: true })
+    return () => window.removeEventListener('mousemove', handleMouse)
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
       {/* ───── HERO ───── */}
-      <section className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-        <GridBg />
-        <BgOrbs />
+      <section
+        ref={heroRef}
+        className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
+      >
+        <GridBg mouse={mouse} />
+        <BgOrbs mouse={mouse} />
+        <GlowFollow mouse={mouse} containerRef={heroRef} />
 
         {/* Dark overlay for depth */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-950/60 pointer-events-none" />
@@ -182,7 +244,14 @@ export default function Landing() {
         </nav>
 
         {/* Hero content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pb-20 text-center">
+        <div
+          className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pb-20 text-center transition-transform duration-500 ease-out"
+          style={{
+            transform: mouse
+              ? `perspective(800px) rotateX(${mouse.y * -1.5}deg) rotateY(${mouse.x * 1.5}deg)`
+              : 'perspective(800px) rotateX(0deg) rotateY(0deg)',
+          }}
+        >
           {/* Badge */}
           <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-slate-300 mb-8 backdrop-blur-sm">
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
@@ -220,7 +289,8 @@ export default function Landing() {
 
       {/* ───── FEATURES ───── */}
       <section className="relative py-24 px-4 bg-slate-950">
-        <BgOrbs />
+        <BgOrbs mouse={mouse} />
+        <GlowFollow mouse={mouse} />
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 mb-4">
@@ -252,9 +322,15 @@ export default function Landing() {
       <section className="relative py-24 px-4 bg-slate-950">
         <div className="max-w-4xl mx-auto text-center">
           <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-blue-600/10 via-violet-600/5 to-slate-900 p-10 sm:p-16 overflow-hidden">
+            <BgOrbs mouse={mouse} />
+            <GlowFollow mouse={mouse} />
             <div className="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-transparent pointer-events-none" />
-            <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/10 to-blue-600/5 blur-3xl" />
-            <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-violet-400/10 to-purple-600/5 blur-3xl" />
+            <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/10 to-blue-600/5 blur-3xl transition-transform duration-500 ease-out"
+              style={{ transform: mouse ? `translate(${mouse.x * -10}px, ${mouse.y * -10}px)` : '' }}
+            />
+            <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-violet-400/10 to-purple-600/5 blur-3xl transition-transform duration-700 ease-out"
+              style={{ transform: mouse ? `translate(${mouse.x * 12}px, ${mouse.y * -8}px)` : '' }}
+            />
             <div className="relative z-10">
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Start shipping today</h2>
               <p className="text-lg text-slate-400 max-w-lg mx-auto mb-8">
