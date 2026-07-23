@@ -71,20 +71,21 @@ export default function KanbanBoard({
   // ── Ensure tasks with no column_id get assigned ──────────────────
   useEffect(() => {
     if (columns.length === 0 || !activeBoardId) return
-    const colMap = {}
-    for (const c of columns) colMap[c.id] = c
+    const firstCol = columns.sort((a, b) => a.position - b.position)[0]
+    if (!firstCol) return
 
-    // For tasks with no column_id, assign based on status using column name matching
     for (const task of tasks) {
       if (!task.column_id) {
-        // Find matching column by status name
+        // If task has a status, try to find a matching column name
         const match = columns.find(
           (c) => c.name.toLowerCase().includes(task.status.replace('_', ' ')) ||
-                 task.status.toLowerCase().includes(c.name.toLowerCase().slice(0, 3))
+                 task.status.replace('_', '').includes(c.name.toLowerCase().slice(0, 3))
         )
-        if (match) {
-          updateTask(task.id, { column_id: match.id }).catch(() => {})
-        }
+        const targetCol = match || firstCol
+        // Optimistic local update so the task shows in the column immediately
+        onUpdate?.({ ...task, column_id: targetCol.id })
+        // Persist
+        updateTask(task.id, { column_id: targetCol.id }).catch(() => {})
       }
     }
   }, [columns, activeBoardId, tasks])
@@ -110,8 +111,11 @@ export default function KanbanBoard({
   const sortedCols = [...fallbackColumns].sort((a, b) => a.position - b.position)
 
   // ── Task drag & drop ─────────────────────────────────────────────
-  const handleTaskDragStart = (task) => {
+  const handleTaskDragStart = (e, task) => {
     draggedTask.current = task
+    // Required by some browsers (Firefox) to allow drag
+    e.dataTransfer.setData('text/plain', task.id)
+    e.dataTransfer.effectAllowed = 'move'
   }
 
   const handleTaskDrop = async (e, colId) => {
@@ -342,7 +346,16 @@ export default function KanbanBoard({
               const isDragOver = dragOverCol === col.id
 
               return (
-                <div key={col.id} className="flex-shrink-0 w-72">
+                <div
+                  key={col.id}
+                  className="flex-shrink-0 w-72"
+                  onDragOver={(e) => {
+                    // Allow task drops anywhere in the column
+                    if (draggedTask.current) { e.preventDefault(); setDragOverCol(col.id) }
+                  }}
+                  onDragLeave={() => setDragOverCol(null)}
+                  onDrop={(e) => handleTaskDrop(e, col.id)}
+                >
                   {/* Column header — draggable for column reorder */}
                   <div
                     draggable={hasColumns}
@@ -399,9 +412,6 @@ export default function KanbanBoard({
 
                   {/* Task list — drop zone for tasks */}
                   <div
-                    onDragOver={(e) => { if (!hasColumns) return; e.preventDefault(); setDragOverCol(col.id) }}
-                    onDragLeave={() => setDragOverCol(null)}
-                    onDrop={(e) => handleTaskDrop(e, col.id)}
                     className={`rounded-b-xl border-2 border-t-0 p-2 flex flex-col gap-2 min-h-[120px] transition-colors ${
                       isDragOver
                         ? 'border-blue-400 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-900/10'
@@ -419,7 +429,7 @@ export default function KanbanBoard({
                       <div
                         key={task.id}
                         draggable
-                        onDragStart={() => handleTaskDragStart(task)}
+                        onDragStart={(e) => handleTaskDragStart(e, task)}
                         className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow group"
                       >
                         {/* Title + priority */}
