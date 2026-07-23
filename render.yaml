@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: mini-jira
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: services/combined
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "false"
