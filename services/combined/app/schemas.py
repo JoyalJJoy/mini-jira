@@ -64,11 +64,54 @@ class TaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
 
 
+# ── Workspace ──────────────────────────────────────────────────────
+
+class WorkspaceCreate(BaseModel):
+    name: str
+    description: str | None = None
+
+
+class WorkspaceUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
+class WorkspaceResponse(BaseModel):
+    id: str
+    name: str
+    description: str | None
+    owner_id: str
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorkspaceMemberResponse(BaseModel):
+    id: str
+    workspace_id: str
+    user_id: str
+    role: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class WorkspaceMemberInvite(BaseModel):
+    email: str
+    role: str = "member"
+
+
+class WorkspaceMemberUpdate(BaseModel):
+    role: str
+
+
 # ── Project ────────────────────────────────────────────────────────
 
 class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
+    workspace_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -81,6 +124,7 @@ class ProjectResponse(BaseModel):
     name: str
     description: str | None
     owner_id: str
+    workspace_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

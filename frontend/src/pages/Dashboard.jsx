@@ -5,14 +5,16 @@ import {
   getTasks, createTask, deleteTask,
   getProjects, createProject, getMembers, addMember,
   getUsers, getTags, createTag,
+  getWorkspaces, createWorkspace,
   PRIORITY_CONFIG,
 } from '../api'
 import Navbar from '../components/Navbar'
 import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
-import ToastContainer, { toast } from '../components/Toast'
+import { toast } from '../components/Toast'
+import WorkspaceSettings from '../components/WorkspaceSettings'
 import useRealtime from '../hooks/useRealtime'
-import { UserPlus, X, Plus, List, Columns3 } from 'lucide-react'
+import { UserPlus, X, Plus } from 'lucide-react'
 
 const FILTERS = ['all', 'todo', 'in_progress', 'done']
 
@@ -34,6 +36,15 @@ export default function Dashboard() {
   const [viewMode, setViewMode] = useState('kanban')
   const [commentsByTask, setCommentsByTask] = useState({})
   const [expandedComments, setExpandedComments] = useState({})
+
+  // Workspace
+  const [workspaces, setWorkspaces] = useState([])
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(
+    () => localStorage.getItem('activeWorkspaceId') || null
+  )
+  const [showWorkspaceSettings, setShowWorkspaceSettings] = useState(false)
+  const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
+  const [wsName, setWsName] = useState('')
 
   // Create-project form
   const [showCreateProject, setShowCreateProject] = useState(false)
@@ -65,9 +76,25 @@ export default function Dashboard() {
     } catch { /* */ }
   }, [activeProjectId])
 
+  const loadWorkspaces = useCallback(async () => {
+    try {
+      const data = await getWorkspaces()
+      setWorkspaces(data)
+      // Auto-select workspace if user has one and none selected
+      if (data.length > 0) {
+        if (!activeWorkspaceId || !data.find((w) => w.id === activeWorkspaceId)) {
+          // Persist selection
+          const target = data[0].id
+          setActiveWorkspaceId(target)
+          localStorage.setItem('activeWorkspaceId', target)
+        }
+      }
+    } catch { /* */ }
+  }, [activeWorkspaceId])
+
   const loadProjects = useCallback(async () => {
-    try { setProjects(await getProjects()) } catch { /* */ }
-  }, [])
+    try { setProjects(await getProjects(activeWorkspaceId)) } catch { /* */ }
+  }, [activeWorkspaceId])
 
   const loadUsers = useCallback(async () => {
     try { setUsers(await getUsers()) } catch { /* */ }
@@ -86,10 +113,11 @@ export default function Dashboard() {
   // ── Initial loads ───────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
-    loadProjects()
+    loadWorkspaces()
     loadUsers()
-  }, [isLoaded, isSignedIn, loadProjects, loadUsers])
+  }, [isLoaded, isSignedIn, loadWorkspaces, loadUsers])
 
+  useEffect(() => { loadProjects() }, [loadProjects])
   useEffect(() => { loadTasks() }, [loadTasks])
 
   useEffect(() => {
@@ -149,12 +177,44 @@ export default function Dashboard() {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
   }
 
+  // ── Workspace actions ───────────────────────────────────────────
+  const handleCreateWorkspace = async (e) => {
+    e.preventDefault()
+    if (!wsName.trim()) return
+    try {
+      const ws = await createWorkspace(wsName, null)
+      setWorkspaces((prev) => [...prev, ws])
+      setActiveWorkspaceId(ws.id)
+      localStorage.setItem('activeWorkspaceId', ws.id)
+      setWsName('')
+      setShowCreateWorkspace(false)
+      toast('Workspace created!')
+    } catch (err) { setError(err.message) }
+  }
+
+  const handleWorkspaceChange = (wsId) => {
+    setActiveWorkspaceId(wsId)
+    localStorage.setItem('activeWorkspaceId', wsId)
+    setActiveProjectId(null)
+    setTasks([])
+    setProjects([])
+  }
+
+  const handleWorkspaceDeleted = () => {
+    localStorage.removeItem('activeWorkspaceId')
+    setActiveWorkspaceId(null)
+    setShowWorkspaceSettings(false)
+    loadWorkspaces()
+    setProjects([])
+    setTasks([])
+  }
+
   // ── Project actions ─────────────────────────────────────────────
   const handleCreateProject = async (e) => {
     e.preventDefault()
     if (!projectName.trim()) return
     try {
-      const proj = await createProject(projectName, projectDesc || null)
+      const proj = await createProject(projectName, projectDesc || null, activeWorkspaceId)
       setProjects((prev) => [...prev, proj])
       setActiveProjectId(proj.id)
       setProjectName(''); setProjectDesc('')
@@ -210,9 +270,64 @@ export default function Dashboard() {
     )
   }
 
+  // No workspaces — prompt to create one
+  if (workspaces.length === 0 && !showCreateWorkspace) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mx-auto">
+            <Plus className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Create Your First Workspace</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
+            Workspaces organize your projects. Start by creating one.
+          </p>
+          <button onClick={() => setShowCreateWorkspace(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 text-white px-4 py-2 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">
+            <Plus className="w-4 h-4" /> Create Workspace
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show create workspace form inline
+  if (showCreateWorkspace) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
+        <form onSubmit={handleCreateWorkspace} className="w-full max-w-sm space-y-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">New Workspace</h2>
+          <input type="text" placeholder="Workspace name" required value={wsName}
+            onChange={(e) => setWsName(e.target.value)}
+            className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+          <div className="flex gap-2">
+            <button type="submit"
+              className="rounded-lg bg-blue-600 text-white px-4 py-1.5 text-sm font-medium hover:bg-blue-700 transition-colors">Create</button>
+            <button type="button" onClick={() => setShowCreateWorkspace(false)}
+              className="rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 px-4 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+          </div>
+        </form>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors">
-      <Navbar viewMode={viewMode} onViewModeChange={setViewMode} />
+      <Navbar
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        activeWorkspaceId={activeWorkspaceId}
+        onWorkspaceChange={handleWorkspaceChange}
+        onOpenWorkspaceSettings={() => setShowWorkspaceSettings(true)}
+      />
+
+      {showWorkspaceSettings && (
+        <WorkspaceSettings
+          workspaceId={activeWorkspaceId}
+          onClose={() => setShowWorkspaceSettings(false)}
+          onWorkspaceDeleted={handleWorkspaceDeleted}
+        />
+      )}
 
       <main className="mx-auto max-w-5xl px-4 py-6">
         {/* Project bar */}
@@ -427,8 +542,6 @@ export default function Dashboard() {
           </div>
         )}
       </main>
-
-      <ToastContainer />
     </div>
   )
 }

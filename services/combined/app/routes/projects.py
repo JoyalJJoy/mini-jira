@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import get_current_user
@@ -20,11 +20,12 @@ async def create_project(
 
 @router.get("/", response_model=list[ProjectResponse])
 async def list_projects(
+    workspace_id: str | None = Query(None, description="Filter by workspace"),
     db: AsyncSession = Depends(get_db),
     current_user: str = Depends(get_current_user),
 ):
     service = ProjectService(db)
-    return await service.list_by_user(current_user)
+    return await service.list_by_user(current_user, workspace_id)
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)

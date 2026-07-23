@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, delete
-from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag
-from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate, TagCreate
+from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag, Workspace, WorkspaceMember
+from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate, TagCreate, WorkspaceCreate, WorkspaceUpdate, WorkspaceMemberUpdate
 from app.security import hash_password, verify_password, create_access_token
 from app.event_bus import event_bus
 
@@ -25,6 +25,223 @@ async def _get_project_ids_for_user(db: AsyncSession, user_id: str) -> list[str]
         select(ProjectMember.project_id).where(ProjectMember.user_id == user_id)
     )
     return [row[0] for row in result.fetchall()]
+
+
+# ── helpers: workspace member check ────────────────────────────────
+
+async def _is_workspace_member(db: AsyncSession, workspace_id: str, user_id: str) -> bool:
+    result = await db.execute(
+        select(WorkspaceMember).where(
+            WorkspaceMember.workspace_id == workspace_id,
+            WorkspaceMember.user_id == user_id,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _get_workspace_ids_for_user(db: AsyncSession, user_id: str) -> list[str]:
+    result = await db.execute(
+        select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user_id)
+    )
+    return [row[0] for row in result.fetchall()]
+
+
+# ── Workspace Service ─────────────────────────────────────────────
+
+class WorkspaceService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create(self, data: WorkspaceCreate, user_id: str) -> Workspace:
+        ws = Workspace(**data.model_dump(), owner_id=user_id)
+        self.db.add(ws)
+        await self.db.flush()
+
+        # Auto-add creator as admin
+        member = WorkspaceMember(workspace_id=ws.id, user_id=user_id, role="admin")
+        self.db.add(member)
+
+        # Auto-create a "General" project in the workspace
+        project = Project(name="General", description="Default project", owner_id=user_id, workspace_id=ws.id)
+        self.db.add(project)
+        await self.db.flush()
+
+        # Auto-add creator as owner member of the project too
+        pmember = ProjectMember(project_id=project.id, user_id=user_id, role="owner")
+        self.db.add(pmember)
+
+        await self.db.commit()
+        await self.db.refresh(ws)
+        return ws
+
+    async def list_by_user(self, user_id: str) -> list[Workspace]:
+        ws_ids = await _get_workspace_ids_for_user(self.db, user_id)
+        if not ws_ids:
+            return []
+        result = await self.db.execute(
+            select(Workspace).where(Workspace.id.in_(ws_ids)).order_by(Workspace.created_at)
+        )
+        return result.scalars().all()
+
+    async def get(self, workspace_id: str, user_id: str) -> Workspace | None:
+        if not await _is_workspace_member(self.db, workspace_id, user_id):
+            return None
+        result = await self.db.execute(select(Workspace).where(Workspace.id == workspace_id))
+        return result.scalar_one_or_none()
+
+    async def _get_if_admin(self, workspace_id: str, user_id: str) -> Workspace | None:
+        ws = await self.get(workspace_id, user_id)
+        if not ws:
+            return None
+        # Check role is admin
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+                WorkspaceMember.role == "admin",
+            )
+        )
+        if result.scalar_one_or_none() is None:
+            return None
+        return ws
+
+    async def update(self, workspace_id: str, data: WorkspaceUpdate, user_id: str) -> Workspace | None:
+        ws = await self._get_if_admin(workspace_id, user_id)
+        if not ws:
+            return None
+        for field, value in data.model_dump(exclude_unset=True).items():
+            setattr(ws, field, value)
+        await self.db.commit()
+        await self.db.refresh(ws)
+        return ws
+
+    async def delete(self, workspace_id: str, user_id: str) -> bool:
+        """Only the owner can delete a workspace."""
+        result = await self.db.execute(
+            select(Workspace).where(Workspace.id == workspace_id, Workspace.owner_id == user_id)
+        )
+        ws = result.scalar_one_or_none()
+        if not ws:
+            return False
+        # Cascade: delete workspace members, then projects (and their members/tasks/tags/comments)
+        await self.db.execute(delete(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id))
+        # Delete all projects in this workspace (cascades will be handled by app logic)
+        proj_result = await self.db.execute(select(Project).where(Project.workspace_id == workspace_id))
+        for project in proj_result.scalars().all():
+            await self.db.execute(delete(ProjectMember).where(ProjectMember.project_id == project.id))
+            await self.db.execute(delete(TaskTag).where(TaskTag.task_id.in_(
+                select(Task.id).where(Task.project_id == project.id)
+            )))
+            await self.db.execute(delete(Comment).where(Comment.task_id.in_(
+                select(Task.id).where(Task.project_id == project.id)
+            )))
+            await self.db.execute(delete(Task).where(Task.project_id == project.id))
+            await self.db.execute(delete(Tag).where(Tag.project_id == project.id))
+            await self.db.delete(project)
+        await self.db.delete(ws)
+        await self.db.commit()
+        return True
+
+    # ── Member management ──────────────────────────────────────────
+
+    async def add_member(self, workspace_id: str, email: str, role: str, current_user: str) -> WorkspaceMember:
+        if not await self._get_if_admin(workspace_id, current_user):
+            raise ValueError("Only workspace admins can add members")
+
+        result = await self.db.execute(select(User).where(User.email == email))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise ValueError(f"User with email '{email}' not found")
+
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user.id,
+            )
+        )
+        if result.scalar_one_or_none():
+            raise ValueError("User is already a member of this workspace")
+
+        member = WorkspaceMember(workspace_id=workspace_id, user_id=user.id, role=role)
+        self.db.add(member)
+
+        # Also auto-add to all existing projects in this workspace
+        proj_result = await self.db.execute(
+            select(Project).where(Project.workspace_id == workspace_id)
+        )
+        for project in proj_result.scalars().all():
+            existing = await self.db.execute(
+                select(ProjectMember).where(
+                    ProjectMember.project_id == project.id,
+                    ProjectMember.user_id == user.id,
+                )
+            )
+            if not existing.scalar_one_or_none():
+                self.db.add(ProjectMember(project_id=project.id, user_id=user.id, role="member"))
+
+        await self.db.commit()
+        await self.db.refresh(member)
+        return member
+
+    async def remove_member(self, workspace_id: str, user_id: str, current_user: str) -> bool:
+        if not await self._get_if_admin(workspace_id, current_user):
+            raise ValueError("Only workspace admins can remove members")
+
+        if user_id == current_user:
+            raise ValueError("Cannot remove yourself from the workspace")
+
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+            )
+        )
+        member = result.scalar_one_or_none()
+        if not member:
+            return False
+
+        # Remove from all projects in this workspace too
+        proj_ids_result = await self.db.execute(
+            select(Project.id).where(Project.workspace_id == workspace_id)
+        )
+        proj_ids = [row[0] for row in proj_ids_result.fetchall()]
+        if proj_ids:
+            await self.db.execute(
+                delete(ProjectMember).where(
+                    ProjectMember.project_id.in_(proj_ids),
+                    ProjectMember.user_id == user_id,
+                )
+            )
+
+        await self.db.delete(member)
+        await self.db.commit()
+        return True
+
+    async def change_member_role(self, workspace_id: str, user_id: str, role: str, current_user: str) -> WorkspaceMember | None:
+        if not await self._get_if_admin(workspace_id, current_user):
+            raise ValueError("Only workspace admins can change roles")
+
+        result = await self.db.execute(
+            select(WorkspaceMember).where(
+                WorkspaceMember.workspace_id == workspace_id,
+                WorkspaceMember.user_id == user_id,
+            )
+        )
+        member = result.scalar_one_or_none()
+        if not member:
+            return None
+        member.role = role
+        await self.db.commit()
+        await self.db.refresh(member)
+        return member
+
+    async def list_members(self, workspace_id: str, user_id: str) -> list[WorkspaceMember]:
+        if not await _is_workspace_member(self.db, workspace_id, user_id):
+            return []
+        result = await self.db.execute(
+            select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id)
+        )
+        return result.scalars().all()
 
 
 # ── User Service ───────────────────────────────────────────────────
@@ -195,14 +412,15 @@ class ProjectService:
         await self.db.refresh(project)
         return project
 
-    async def list_by_user(self, user_id: str) -> list[Project]:
+    async def list_by_user(self, user_id: str, workspace_id: str | None = None) -> list[Project]:
         # Projects where user is owner or member
         project_ids = await _get_project_ids_for_user(self.db, user_id)
         if not project_ids:
             return []
-        result = await self.db.execute(
-            select(Project).where(Project.id.in_(project_ids)).order_by(Project.created_at)
-        )
+        query = select(Project).where(Project.id.in_(project_ids))
+        if workspace_id:
+            query = query.where(Project.workspace_id == workspace_id)
+        result = await self.db.execute(query.order_by(Project.created_at))
         return result.scalars().all()
 
     async def _get_if_member(self, project_id: str, user_id: str) -> Project | None:

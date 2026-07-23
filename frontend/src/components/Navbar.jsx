@@ -1,18 +1,32 @@
 import { useClerk, useUser } from '@clerk/clerk-react'
 import { CheckCircle, LogOut, Layout, Columns3 } from 'lucide-react'
 import DarkModeToggle from './DarkModeToggle'
+import WorkspaceSwitcher from './WorkspaceSwitcher'
 
-export default function Navbar({ viewMode, onViewModeChange }) {
+export default function Navbar({
+  viewMode,
+  onViewModeChange,
+  activeWorkspaceId,
+  onWorkspaceChange,
+  onOpenWorkspaceSettings,
+}) {
   const { signOut } = useClerk()
   const { user } = useUser()
 
   return (
     <nav className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 sm:px-6 py-3">
-      <div className="flex items-center gap-2">
-        <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center shrink-0">
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
-        <span className="text-base font-semibold text-slate-900 dark:text-slate-100">Mini Jira</span>
+        <span className="text-base font-semibold text-slate-900 dark:text-slate-100 hidden sm:block shrink-0">
+          Mini Jira
+        </span>
+        <WorkspaceSwitcher
+          activeWorkspaceId={activeWorkspaceId}
+          onWorkspaceChange={onWorkspaceChange}
+          onOpenSettings={onOpenWorkspaceSettings}
+        />
       </div>
 
       <div className="flex items-center gap-2">

@@ -79,11 +79,33 @@ export const updateTask = (taskId, data) =>
 export const deleteTask = (taskId) =>
   request(`/tasks/${taskId}`, { method: 'DELETE' })
 
-// Projects
-export const getProjects = () => request('/projects/')
+// Workspaces
+export const getWorkspaces = () => request('/workspaces/')
 
-export const createProject = (name, description) =>
-  request('/projects/', { method: 'POST', body: JSON.stringify({ name, description }) })
+export const createWorkspace = (name, description) =>
+  request('/workspaces/', { method: 'POST', body: JSON.stringify({ name, description }) })
+
+export const updateWorkspace = (wsId, data) =>
+  request(`/workspaces/${wsId}`, { method: 'PATCH', body: JSON.stringify(data) })
+
+export const deleteWorkspace = (wsId) =>
+  request(`/workspaces/${wsId}`, { method: 'DELETE' })
+
+export const getWorkspaceMembers = (wsId) =>
+  request(`/workspaces/${wsId}/members`)
+
+export const addWorkspaceMember = (wsId, email) =>
+  request(`/workspaces/${wsId}/members`, { method: 'POST', body: JSON.stringify({ email, role: 'member' }) })
+
+export const removeWorkspaceMember = (wsId, userId) =>
+  request(`/workspaces/${wsId}/members/${userId}`, { method: 'DELETE' })
+
+// Projects
+export const getProjects = (workspaceId) =>
+  request(`/projects/${workspaceId ? `?workspace_id=${workspaceId}` : ''}`)
+
+export const createProject = (name, description, workspaceId) =>
+  request('/projects/', { method: 'POST', body: JSON.stringify({ name, description, workspace_id: workspaceId || null }) })
 
 export const deleteProject = (projectId) =>
   request(`/projects/${projectId}`, { method: 'DELETE' })
