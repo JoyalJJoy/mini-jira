@@ -11,6 +11,7 @@ import {
 } from '../api'
 import Navbar from '../components/Navbar'
 import FilterPanel from '../components/FilterPanel'
+import DashboardWidgets from '../components/DashboardWidgets'
 import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
 import SprintManager from '../components/SprintManager'
@@ -798,7 +799,9 @@ export default function Dashboard() {
             </div>
           )}
 
-          {viewMode === 'kanban' ? (
+          {viewMode === 'dashboard' ? (
+            <DashboardWidgets projectId={activeProjectId} onTaskClick={setDetailsTask} />
+          ) : viewMode === 'kanban' ? (
             <KanbanBoard
               projectId={activeProjectId}
               tasks={tasks}

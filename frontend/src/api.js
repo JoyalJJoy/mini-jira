@@ -91,6 +91,9 @@ export const updateTask = (taskId, data) =>
 export const deleteTask = (taskId) =>
   request(`/tasks/${taskId}`, { method: 'DELETE' })
 
+// Dashboard
+export const getDashboard = () => request('/dashboard/')
+
 // Workspaces
 export const getWorkspaces = () => request('/workspaces/')
 
