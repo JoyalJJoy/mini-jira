@@ -32,6 +32,7 @@ class TaskCreate(BaseModel):
     description: str | None = None
     priority: TaskPriority | None = None
     project_id: str | None = None
+    column_id: str | None = None
     assignee_id: str | None = None
     due_date: datetime | None = None
     tag_ids: list[str] = []
@@ -41,6 +42,8 @@ class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     status: TaskStatus | None = None
+    column_id: str | None = None
+    position: int | None = None
     priority: TaskPriority | None = None
     project_id: str | None = None
     assignee_id: str | None = None
@@ -53,6 +56,8 @@ class TaskResponse(BaseModel):
     title: str
     description: str | None
     status: TaskStatus
+    column_id: str | None = None
+    position: int = 0
     priority: TaskPriority
     project_id: str | None
     assignee_id: str | None
@@ -151,6 +156,52 @@ class ProjectMemberResponse(BaseModel):
     project_id: str
     user_id: str
     role: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Board ─────────────────────────────────────────────────────────
+
+class BoardCreate(BaseModel):
+    name: str
+    project_id: str
+
+
+class BoardUpdate(BaseModel):
+    name: str | None = None
+
+
+class BoardResponse(BaseModel):
+    id: str
+    name: str
+    project_id: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Column ────────────────────────────────────────────────────────
+
+class ColumnCreate(BaseModel):
+    board_id: str
+    name: str
+    position: int | None = None
+    wip_limit: int | None = None
+
+
+class ColumnUpdate(BaseModel):
+    name: str | None = None
+    position: int | None = None
+    wip_limit: int | None = None
+
+
+class ColumnResponse(BaseModel):
+    id: str
+    board_id: str
+    name: str
+    position: int
+    wip_limit: int | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

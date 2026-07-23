@@ -147,6 +147,32 @@ export const createTag = (projectId, name, color) =>
 export const deleteTag = (projectId, tagId) =>
   request(`/projects/${projectId}/tags/${tagId}`, { method: 'DELETE' })
 
+// Boards
+export const getBoards = (projectId) =>
+  request(`/boards/project/${projectId}`)
+
+export const createBoard = (name, projectId) =>
+  request('/boards/', { method: 'POST', body: JSON.stringify({ name, project_id: projectId }) })
+
+export const updateBoard = (boardId, data) =>
+  request(`/boards/${boardId}`, { method: 'PATCH', body: JSON.stringify(data) })
+
+export const deleteBoard = (boardId) =>
+  request(`/boards/${boardId}`, { method: 'DELETE' })
+
+// Columns
+export const getColumns = (boardId) =>
+  request(`/boards/${boardId}/columns`)
+
+export const createColumn = (boardId, name, wipLimit = null) =>
+  request(`/boards/${boardId}/columns`, { method: 'POST', body: JSON.stringify({ board_id: boardId, name, wip_limit: wipLimit }) })
+
+export const updateColumn = (boardId, columnId, data) =>
+  request(`/boards/${boardId}/columns/${columnId}`, { method: 'PATCH', body: JSON.stringify(data) })
+
+export const deleteColumn = (boardId, columnId) =>
+  request(`/boards/${boardId}/columns/${columnId}`, { method: 'DELETE' })
+
 // Real-time events (SSE)
 export function subscribeToEvents(tokenProvider) {
   const base = API.replace('/api/v1', '')

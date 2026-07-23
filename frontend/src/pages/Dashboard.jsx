@@ -649,6 +649,7 @@ export default function Dashboard() {
         {/* Task display */}
         {viewMode === 'kanban' ? (
           <KanbanBoard
+            projectId={activeProjectId}
             tasks={tasks}
             onUpdate={handleUpdate}
             onDelete={handleDelete}
