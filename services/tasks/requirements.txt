@@ -1,0 +1,7 @@
+fastapi[standard]
+sqlalchemy[asyncio]
+aiosqlite
+pyjwt
+pwdlib[argon2]
+greenlet
+redis[hiredis]

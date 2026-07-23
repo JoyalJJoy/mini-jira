@@ -1,0 +1,40 @@
+services:
+
+  users:
+    build: ./services/users
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./services/users:/app
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./users.db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  tasks:
+    build: ./services/tasks
+    ports:
+      - "8002:8000"
+    depends_on:
+      - redis
+    volumes:
+      - ./services/tasks:/app
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./tasks.db
+      - REDIS_URL=redis://redis:6379/0
+
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "8000:8000"
+    depends_on:
+      - users
+      - tasks
+    volumes:
+      - ./services/gateway:/app
+    environment:
+      - USER_SERVICE_URL=http://users:8000
+      - TASK_SERVICE_URL=http://tasks:8000

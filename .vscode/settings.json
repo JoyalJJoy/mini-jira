@@ -1,0 +1,10 @@
+{
+  // Silence VS Code's built-in CSS linter for Tailwind v4 at-rules
+  // (@plugin, @custom-variant, @theme, @apply, etc.)
+  "css.lint.unknownAtRules": "ignore",
+
+  // Recommended: install "Tailwind CSS IntelliSense" extension
+  // for proper autocomplete and syntax highlighting
+  "tailwindCSS.experimental.configFile": null,
+  "tailwindCSS.validate": true
+}
