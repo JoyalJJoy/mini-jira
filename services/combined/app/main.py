@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models import Base
 from app.db import engine
-from app.routes import auth, users, tasks, projects, comments
+from app.routes import auth, users, tasks, projects, comments, tags, events
 
 # Ensure all models are imported so create_all discovers them
-from app.models import User, Task, Project, ProjectMember, Comment  # noqa: F401
+from app.models import User, Task, Project, ProjectMember, Comment, Tag, TaskTag  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,6 +37,8 @@ app.include_router(users.router)
 app.include_router(tasks.router)
 app.include_router(projects.router)
 app.include_router(comments.router)
+app.include_router(tags.router)
+app.include_router(events.router)
 
 
 @app.get("/health")

@@ -48,6 +48,7 @@ class Task(Base):
     owner_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     assignee_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -83,6 +84,24 @@ class ProjectMember(Base):
     user_id: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String(20), default="member")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ── Tag / Label ────────────────────────────────────────────────────
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    color: Mapped[str] = mapped_column(String(20), default="#3B82F6")
+    project_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+
+
+class TaskTag(Base):
+    __tablename__ = "task_tags"
+
+    task_id: Mapped[str] = mapped_column(String, primary_key=True)
+    tag_id: Mapped[str] = mapped_column(String, primary_key=True)
 
 
 # ── Comment ───────────────────────────────────────────────────────

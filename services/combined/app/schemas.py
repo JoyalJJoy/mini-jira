@@ -33,6 +33,8 @@ class TaskCreate(BaseModel):
     priority: TaskPriority | None = None
     project_id: str | None = None
     assignee_id: str | None = None
+    due_date: datetime | None = None
+    tag_ids: list[str] = []
 
 
 class TaskUpdate(BaseModel):
@@ -42,6 +44,8 @@ class TaskUpdate(BaseModel):
     priority: TaskPriority | None = None
     project_id: str | None = None
     assignee_id: str | None = None
+    due_date: datetime | None = None
+    tag_ids: list[str] | None = None
 
 
 class TaskResponse(BaseModel):
@@ -53,6 +57,7 @@ class TaskResponse(BaseModel):
     project_id: str | None
     assignee_id: str | None
     owner_id: str
+    due_date: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -95,6 +100,22 @@ class ProjectMemberResponse(BaseModel):
     user_id: str
     role: str
     created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Tag / Label ────────────────────────────────────────────────────
+
+class TagCreate(BaseModel):
+    name: str
+    color: str = "#3B82F6"
+
+
+class TagResponse(BaseModel):
+    id: str
+    name: str
+    color: str
+    project_id: str
 
     model_config = ConfigDict(from_attributes=True)
 

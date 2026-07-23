@@ -6,3 +6,4 @@ pwdlib[argon2]
 greenlet
 pydantic-settings
 httpx
+sse-starlette

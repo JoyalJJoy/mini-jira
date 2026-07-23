@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
-from app.models import User, Task, Project, ProjectMember, Comment
-from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate
+from sqlalchemy import select, or_, delete
+from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag
+from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate, TagCreate
 from app.security import hash_password, verify_password, create_access_token
 from app.event_bus import event_bus
 
@@ -70,17 +70,25 @@ class TaskService:
             if not await _is_project_member(self.db, data.project_id, user_id):
                 raise ValueError("You are not a member of this project")
 
-        task_data = data.model_dump(exclude_unset=True)
+        tag_ids = data.tag_ids or []
+        task_data = data.model_dump(exclude_unset=True, exclude={"tag_ids"})
         task_data.setdefault("priority", "p2")
         task_data["owner_id"] = user_id
         task = Task(**task_data)
         self.db.add(task)
+        await self.db.flush()
+
+        # Link tags
+        for tag_id in tag_ids:
+            self.db.add(TaskTag(task_id=task.id, tag_id=tag_id))
+
         await self.db.commit()
         await self.db.refresh(task)
         await event_bus.publish("task.created", {
             "id": task.id,
             "title": task.title,
             "owner_id": task.owner_id,
+            "project_id": task.project_id,
         })
         return task
 
@@ -131,18 +139,41 @@ class TaskService:
         task = await self._can_access_task(task_id, user_id)
         if not task:
             return None
-        for field, value in data.model_dump(exclude_unset=True).items():
+
+        tag_ids = data.tag_ids
+        update_data = data.model_dump(exclude_unset=True, exclude={"tag_ids"})
+
+        for field, value in update_data.items():
             setattr(task, field, value)
+
+        # Update tag links if provided
+        if tag_ids is not None:
+            await self.db.execute(delete(TaskTag).where(TaskTag.task_id == task.id))
+            for tag_id in tag_ids:
+                self.db.add(TaskTag(task_id=task.id, tag_id=tag_id))
+
         await self.db.commit()
         await self.db.refresh(task)
+        await event_bus.publish("task.updated", {
+            "id": task.id,
+            "title": task.title,
+            "status": task.status,
+            "project_id": task.project_id,
+        })
         return task
 
     async def delete(self, task_id: str, user_id: str) -> bool:
         task = await self._can_access_task(task_id, user_id)
         if not task:
             return False
+        project_id = task.project_id
+        await self.db.execute(delete(TaskTag).where(TaskTag.task_id == task.id))
         await self.db.delete(task)
         await self.db.commit()
+        await event_bus.publish("task.deleted", {
+            "id": task_id,
+            "project_id": project_id,
+        })
         return True
 
 
@@ -270,6 +301,42 @@ class ProjectService:
         return result.scalars().all()
 
 
+# ── Tag / Label Service ────────────────────────────────────────────
+
+class TagService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create(self, data: TagCreate, project_id: str) -> Tag:
+        tag = Tag(**data.model_dump(), project_id=project_id)
+        self.db.add(tag)
+        await self.db.commit()
+        await self.db.refresh(tag)
+        return tag
+
+    async def list_by_project(self, project_id: str) -> list[Tag]:
+        result = await self.db.execute(
+            select(Tag).where(Tag.project_id == project_id).order_by(Tag.name)
+        )
+        return result.scalars().all()
+
+    async def get_task_tags(self, task_id: str) -> list[Tag]:
+        result = await self.db.execute(
+            select(Tag).join(TaskTag).where(TaskTag.task_id == task_id)
+        )
+        return result.scalars().all()
+
+    async def delete(self, tag_id: str) -> bool:
+        result = await self.db.execute(select(Tag).where(Tag.id == tag_id))
+        tag = result.scalar_one_or_none()
+        if not tag:
+            return False
+        await self.db.execute(delete(TaskTag).where(TaskTag.tag_id == tag.id))
+        await self.db.delete(tag)
+        await self.db.commit()
+        return True
+
+
 # ── Comment Service ────────────────────────────────────────────────
 
 class CommentService:
@@ -281,6 +348,16 @@ class CommentService:
         self.db.add(comment)
         await self.db.commit()
         await self.db.refresh(comment)
+        # Look up the task's project for the event
+        result = await self.db.execute(select(Task).where(Task.id == task_id))
+        task = result.scalar_one_or_none()
+        await event_bus.publish("comment.created", {
+            "id": comment.id,
+            "task_id": task_id,
+            "author_id": author_id,
+            "content": comment.content,
+            "project_id": task.project_id if task else None,
+        })
         return comment
 
     async def list_by_task(self, task_id: str) -> list[Comment]:

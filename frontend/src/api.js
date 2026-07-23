@@ -70,8 +70,8 @@ export const getUsers = () => request('/users/')
 export const getTasks = (projectId) =>
   request(`/tasks/${projectId ? `?project_id=${projectId}` : ''}`)
 
-export const createTask = (title, description, priority, projectId, assigneeId) =>
-  request('/tasks/', { method: 'POST', body: JSON.stringify({ title, description, priority, project_id: projectId, assignee_id: assigneeId }) })
+export const createTask = (title, description, priority, projectId, assigneeId, dueDate, tagIds) =>
+  request('/tasks/', { method: 'POST', body: JSON.stringify({ title, description, priority, project_id: projectId, assignee_id: assigneeId, due_date: dueDate || null, tag_ids: tagIds || [] }) })
 
 export const updateTask = (taskId, data) =>
   request(`/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) })
@@ -106,6 +106,27 @@ export const createComment = (taskId, content) =>
 
 export const deleteComment = (taskId, commentId) =>
   request(`/tasks/${taskId}/comments/${commentId}`, { method: 'DELETE' })
+
+// Tags
+export const getTags = (projectId) => request(`/projects/${projectId}/tags`)
+
+export const createTag = (projectId, name, color) =>
+  request(`/projects/${projectId}/tags`, { method: 'POST', body: JSON.stringify({ name, color }) })
+
+export const deleteTag = (projectId, tagId) =>
+  request(`/projects/${projectId}/tags/${tagId}`, { method: 'DELETE' })
+
+// Real-time events (SSE)
+export function subscribeToEvents(tokenProvider) {
+  const base = API.replace('/api/v1', '')
+  const url = `${base}/api/v1/events/`
+  const es = new EventSource(url, {
+    headers: tokenProvider ? { Authorization: `Bearer ${tokenProvider()}` } : undefined,
+  })
+  // Note: EventSource doesn't support custom headers natively.
+  // We'll use a workaround with fetch + ReadableStream in the hook instead.
+  return es
+}
 
 // Display helpers
 export const STATUS_CONFIG = {

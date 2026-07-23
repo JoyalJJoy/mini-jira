@@ -6,6 +6,7 @@ import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
+import ToastContainer from './components/Toast'
 
 export default function App() {
   const { getToken } = useAuth()
@@ -24,6 +25,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="*" element={<Landing />} />
       </Routes>
+      <ToastContainer />
     </div>
   )
 }
