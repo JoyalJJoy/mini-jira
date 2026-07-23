@@ -101,11 +101,17 @@ export const removeWorkspaceMember = (wsId, userId) =>
   request(`/workspaces/${wsId}/members/${userId}`, { method: 'DELETE' })
 
 // Projects
-export const getProjects = (workspaceId) =>
-  request(`/projects/${workspaceId ? `?workspace_id=${workspaceId}` : ''}`)
+export const getProjects = (workspaceId, includeArchived = false) => {
+  let params = `?include_archived=${includeArchived}`
+  if (workspaceId) params += `&workspace_id=${workspaceId}`
+  return request(`/projects/${params}`)
+}
 
-export const createProject = (name, description, workspaceId) =>
-  request('/projects/', { method: 'POST', body: JSON.stringify({ name, description, workspace_id: workspaceId || null }) })
+export const createProject = (name, description, workspaceId, icon = '📋', color = '#3B82F6') =>
+  request('/projects/', { method: 'POST', body: JSON.stringify({ name, description, icon, color, workspace_id: workspaceId || null }) })
+
+export const updateProject = (projectId, data) =>
+  request(`/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify(data) })
 
 export const deleteProject = (projectId) =>
   request(`/projects/${projectId}`, { method: 'DELETE' })

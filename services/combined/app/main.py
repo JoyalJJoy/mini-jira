@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from app.config import settings
 from app.models import Base
 from app.db import engine
@@ -17,6 +18,20 @@ logging.basicConfig(level=logging.INFO)
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        # ── Migration: add columns for existing projects ──────────
+        # These are safe — SQLAlchemy will silently skip if columns already exist
+        migrations = [
+            "ALTER TABLE projects ADD COLUMN icon VARCHAR(10) DEFAULT '📋'",
+            "ALTER TABLE projects ADD COLUMN color VARCHAR(20) DEFAULT '#3B82F6'",
+            "ALTER TABLE projects ADD COLUMN is_archived BOOLEAN DEFAULT 0",
+        ]
+        for stmt in migrations:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass  # column already exists
+
     yield
     await engine.dispose()
 

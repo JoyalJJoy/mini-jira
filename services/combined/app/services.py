@@ -411,11 +411,28 @@ class ProjectService:
         # Auto-add creator as owner member
         member = ProjectMember(project_id=project.id, user_id=user_id, role="owner")
         self.db.add(member)
+
+        # Auto-add all workspace members to the project
+        if data.workspace_id:
+            ws_members = await self.db.execute(
+                select(WorkspaceMember).where(WorkspaceMember.workspace_id == data.workspace_id)
+            )
+            for wm in ws_members.scalars().all():
+                if wm.user_id != user_id:  # already added as owner
+                    existing = await self.db.execute(
+                        select(ProjectMember).where(
+                            ProjectMember.project_id == project.id,
+                            ProjectMember.user_id == wm.user_id,
+                        )
+                    )
+                    if not existing.scalar_one_or_none():
+                        self.db.add(ProjectMember(project_id=project.id, user_id=wm.user_id, role="member"))
+
         await self.db.commit()
         await self.db.refresh(project)
         return project
 
-    async def list_by_user(self, user_id: str, workspace_id: str | None = None) -> list[Project]:
+    async def list_by_user(self, user_id: str, workspace_id: str | None = None, include_archived: bool = False) -> list[Project]:
         # Projects where user is owner or member
         project_ids = await _get_project_ids_for_user(self.db, user_id)
         if not project_ids:
@@ -423,6 +440,8 @@ class ProjectService:
         query = select(Project).where(Project.id.in_(project_ids))
         if workspace_id:
             query = query.where(Project.workspace_id == workspace_id)
+        if not include_archived:
+            query = query.where(Project.is_archived == False)
         result = await self.db.execute(query.order_by(Project.created_at))
         return result.scalars().all()
 

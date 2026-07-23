@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth, useUser } from '@clerk/clerk-react'
 import {
   getTasks, createTask, deleteTask,
-  getProjects, createProject, getMembers, addMember,
+  getProjects, createProject, updateProject, getMembers, addMember,
   getUsers, getTags, createTag,
   getWorkspaces, createWorkspace,
   PRIORITY_CONFIG,
@@ -13,8 +13,12 @@ import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
 import { toast } from '../components/Toast'
 import WorkspaceSettings from '../components/WorkspaceSettings'
+import ProjectSettings from '../components/ProjectSettings'
 import useRealtime from '../hooks/useRealtime'
-import { UserPlus, X, Plus } from 'lucide-react'
+import { X, Plus, Settings } from 'lucide-react'
+
+const PROJECT_ICONS = ['📋', '🚀', '🎨', '🌐', '📊', '⚙️', '📦', '🛠️', '🏗️', '📝', '💻', '🎯', '📈', '🤖', '🧩', '🗂️', '🎮', '🏆']
+const PROJECT_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#64748B']
 
 const FILTERS = ['all', 'todo', 'in_progress', 'done']
 
@@ -46,14 +50,16 @@ export default function Dashboard() {
   const [showCreateWorkspace, setShowCreateWorkspace] = useState(false)
   const [wsName, setWsName] = useState('')
 
-  // Create-project form
+  // Create-project modal
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [projectDesc, setProjectDesc] = useState('')
+  const [projectIcon, setProjectIcon] = useState('📋')
+  const [projectColor, setProjectColor] = useState('#3B82F6')
+  const [creatingProject, setCreatingProject] = useState(false)
 
-  // Add-member form
-  const [showAddMember, setShowAddMember] = useState(false)
-  const [memberEmail, setMemberEmail] = useState('')
+  // Project settings modal
+  const [settingsProject, setSettingsProject] = useState(null)
 
   // Create-tag form
   const [showCreateTag, setShowCreateTag] = useState(false)
@@ -102,7 +108,7 @@ export default function Dashboard() {
   }, [activeWorkspaceId])
 
   const loadProjects = useCallback(async () => {
-    try { setProjects(await getProjects(activeWorkspaceId)) } catch { /* */ }
+    try { setProjects(await getProjects(activeWorkspaceId, true)) } catch { /* */ }
   }, [activeWorkspaceId])
 
   const loadUsers = useCallback(async () => {
@@ -245,25 +251,32 @@ export default function Dashboard() {
   const handleCreateProject = async (e) => {
     e.preventDefault()
     if (!projectName.trim()) return
+    setCreatingProject(true)
     try {
-      const proj = await createProject(projectName, projectDesc || null, activeWorkspaceId)
+      const proj = await createProject(projectName, projectDesc || null, activeWorkspaceId, projectIcon, projectColor)
       setProjects((prev) => [...prev, proj])
       setActiveProjectId(proj.id)
-      setProjectName(''); setProjectDesc('')
+      setProjectName(''); setProjectDesc(''); setProjectIcon('📋'); setProjectColor('#3B82F6')
       setShowCreateProject(false)
       toast('Project created!')
     } catch (err) { setError(err.message) }
+    finally { setCreatingProject(false) }
   }
 
-  const handleAddMember = async (e) => {
-    e.preventDefault()
-    if (!memberEmail.trim() || !activeProjectId) return
-    try {
-      await addMember(activeProjectId, memberEmail)
-      setMemberEmail(''); setShowAddMember(false)
-      loadMembers(activeProjectId)
-      toast('Member added!')
-    } catch (err) { setError(err.message) }
+  const handleUpdateProject = (updated) => {
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+    loadTasks()
+  }
+
+  const handleDeleteProject = (projectId) => {
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.id !== projectId)
+      if (activeProjectId === projectId) {
+        setActiveProjectId(updated.length > 0 ? updated[0].id : null)
+      }
+      return updated
+    })
+    loadTasks()
   }
 
   const handleCreateTag = async (e) => {
@@ -374,6 +387,84 @@ export default function Dashboard() {
         />
       )}
 
+      {settingsProject && (
+        <ProjectSettings
+          project={settingsProject}
+          onClose={() => setSettingsProject(null)}
+          onUpdate={handleUpdateProject}
+          onDelete={handleDeleteProject}
+        />
+      )}
+
+      {/* Create project modal */}
+      {showCreateProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">New Project</h2>
+              <button onClick={() => { setShowCreateProject(false); setProjectName(''); setProjectDesc(''); setProjectIcon('📋'); setProjectColor('#3B82F6') }}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateProject} className="p-5 space-y-4">
+              {error && (
+                <div className="rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-400">{error}</div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Name</label>
+                <input type="text" placeholder="Project name" required value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                <input type="text" placeholder="Brief description..." value={projectDesc}
+                  onChange={(e) => setProjectDesc(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Icon</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PROJECT_ICONS.map((ic) => (
+                    <button key={ic} type="button" onClick={() => setProjectIcon(ic)}
+                      className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-all ${
+                        projectIcon === ic
+                          ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/30 scale-110'
+                          : 'hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}>
+                      {ic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Color</label>
+                <div className="flex flex-wrap gap-2">
+                  {PROJECT_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => setProjectColor(c)}
+                      className={`w-7 h-7 rounded-full transition-all ${
+                        projectColor === c ? 'ring-2 ring-offset-2 ring-blue-500 dark:ring-offset-slate-800 scale-110' : 'hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="submit" disabled={creatingProject || !projectName.trim()}
+                  className="flex-1 h-9 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
+                  {creatingProject ? 'Creating...' : 'Create Project'}
+                </button>
+                <button type="button" onClick={() => { setShowCreateProject(false); setProjectName(''); setProjectDesc(''); setProjectIcon('📋'); setProjectColor('#3B82F6') }}
+                  className="px-4 h-9 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto max-w-5xl px-4 py-6">
         {/* Project bar */}
         <div className="mb-6 flex flex-wrap items-center gap-2">
@@ -390,41 +481,38 @@ export default function Dashboard() {
                 All Tasks
               </button>
               {projects.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setActiveProjectId(p.id)}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                    activeProjectId === p.id
-                      ? 'bg-blue-600 text-white dark:bg-blue-500'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  {p.name}
-                </button>
+                <div key={p.id} className="relative group">
+                  <button
+                    onClick={() => setActiveProjectId(p.id)}
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      activeProjectId === p.id
+                        ? 'bg-blue-600 text-white dark:bg-blue-500'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    } ${p.is_archived ? 'opacity-50' : ''}`}
+                  >
+                    <span className="text-xs leading-none">{p.icon || '📋'}</span>
+                    <span>{p.name}</span>
+                    {p.is_archived && <span className="text-[10px] opacity-60">(archived)</span>}
+                  </button>
+                  <button
+                    onClick={() => setSettingsProject(p)}
+                    className={`absolute -right-1.5 -top-1.5 p-0.5 rounded-full transition-all opacity-0 group-hover:opacity-100 hover:scale-110 ${
+                      activeProjectId === p.id
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-slate-700 text-slate-400 border border-slate-200 dark:border-slate-600'
+                    }`}
+                    title="Project settings"
+                  >
+                    <Settings className="w-3 h-3" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
-          {!showCreateProject ? (
-            <button onClick={() => setShowCreateProject(true)}
-              className="rounded-md px-3 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-              + Project
-            </button>
-          ) : (
-            <form onSubmit={handleCreateProject} className="flex items-center gap-1.5 flex-wrap">
-              <input type="text" placeholder="Name" required value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="h-7 w-28 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              <input type="text" placeholder="Desc" value={projectDesc}
-                onChange={(e) => setProjectDesc(e.target.value)}
-                className="h-7 w-32 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-              <button type="submit"
-                className="h-7 rounded-md bg-blue-600 text-white px-2.5 text-xs font-medium hover:bg-blue-700 transition-colors">Create</button>
-              <button type="button" onClick={() => setShowCreateProject(false)}
-                className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </form>
-          )}
+          <button onClick={() => setShowCreateProject(true)}
+            className="rounded-md px-3 py-1.5 text-xs font-medium bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+            + Project
+          </button>
         </div>
 
         {/* Create task form */}
@@ -485,27 +573,17 @@ export default function Dashboard() {
               <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">Members:</span>
               {members.map((m) => (
                 <span key={m.id} className="inline-flex items-center gap-1 rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-slate-600 dark:text-slate-400">
-                  {users.find((u) => u.id === m.user_id)?.display_name || m.user_id.slice(0, 8)}
+                  {/* Try to find user name; fall back to id prefix */}
+                  {(() => {
+                    const u = users.find((u) => u.id === m.user_id)
+                    return u?.display_name || m.user_id.slice(0, 8)
+                  })()}
                 </span>
               ))}
-              {!showAddMember ? (
-                <button onClick={() => setShowAddMember(true)}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-                  <UserPlus className="w-3 h-3" /> Invite
-                </button>
-              ) : (
-                <form onSubmit={handleAddMember} className="flex items-center gap-1">
-                  <input type="email" placeholder="Email" required value={memberEmail}
-                    onChange={(e) => setMemberEmail(e.target.value)}
-                    className="h-7 w-36 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                  <button type="submit"
-                    className="h-7 rounded-md bg-blue-600 text-white px-2 text-xs font-medium hover:bg-blue-700 transition-colors">Send</button>
-                  <button type="button" onClick={() => setShowAddMember(false)}
-                    className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
-                    <X className="w-3 h-3" />
-                  </button>
-                </form>
-              )}
+              <button onClick={() => setSettingsProject(activeProject)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
+                <Settings className="w-3 h-3" /> Manage
+              </button>
             </div>
 
             {/* Tags */}

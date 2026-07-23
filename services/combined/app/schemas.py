@@ -111,18 +111,26 @@ class WorkspaceMemberUpdate(BaseModel):
 class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
+    icon: str = "📋"
+    color: str = "#3B82F6"
     workspace_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    is_archived: bool | None = None
 
 
 class ProjectResponse(BaseModel):
     id: str
     name: str
     description: str | None
+    icon: str
+    color: str
+    is_archived: bool
     owner_id: str
     workspace_id: str | None = None
     created_at: datetime

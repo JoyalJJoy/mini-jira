@@ -21,11 +21,12 @@ async def create_project(
 @router.get("/", response_model=list[ProjectResponse])
 async def list_projects(
     workspace_id: str | None = Query(None, description="Filter by workspace"),
+    include_archived: bool = Query(False, description="Include archived projects"),
     db: AsyncSession = Depends(get_db),
     current_user: str = Depends(get_current_user),
 ):
     service = ProjectService(db)
-    return await service.list_by_user(current_user, workspace_id)
+    return await service.list_by_user(current_user, workspace_id, include_archived)
 
 
 @router.get("/{project_id}", response_model=ProjectResponse)
