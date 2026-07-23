@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth, useUser } from '@clerk/clerk-react'
 import {
   getTasks, createTask, deleteTask,
   getProjects, createProject, getMembers, addMember,
@@ -38,7 +38,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) navigate('/')
+    if (isLoaded && !isSignedIn) navigate('/login')
   }, [isLoaded, isSignedIn, navigate])
 
   const loadTasks = useCallback(async () => {
@@ -147,7 +147,13 @@ export default function Dashboard() {
     ? tasks
     : tasks.filter((t) => t.status === filter)
 
-  if (!isLoaded) return null
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">
