@@ -5,7 +5,7 @@ import {
   getTags, getChecklists, createChecklist, updateChecklist, deleteChecklist,
   getAttachments, uploadAttachment, deleteAttachment,
   getUsers, getActivity,
-  PRIORITY_CONFIG,
+  PRIORITY_CONFIG, ISSUE_TYPE_CONFIG, ISSUE_TYPE_ORDER,
 } from '../api'
 import {
   X, Calendar, Clock, Paperclip, CheckSquare, MessageSquare,
@@ -73,6 +73,7 @@ export default function TaskDetails({ task, projectId, onClose, onUpdate, users 
   const [description, setDescription] = useState(task.description || '')
   const [status, setStatus] = useState(task.status)
   const [priority, setPriority] = useState(task.priority)
+  const [issueType, setIssueType] = useState(task.issue_type || 'task')
   const [assigneeId, setAssigneeId] = useState(task.assignee_id || '')
   const [dueDate, setDueDate] = useState(task.due_date ? task.due_date.slice(0, 10) : '')
   const [estimatedTime, setEstimatedTime] = useState(task.estimated_time || '')
@@ -226,6 +227,9 @@ export default function TaskDetails({ task, projectId, onClose, onUpdate, users 
         {/* ── Header ──────────────────────────────────────────── */}
         <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0">
+            <span className="text-xs leading-none" title={(ISSUE_TYPE_CONFIG[issueType] || ISSUE_TYPE_CONFIG.task).label}>
+              {(ISSUE_TYPE_CONFIG[issueType] || ISSUE_TYPE_CONFIG.task).icon}
+            </span>
             <span className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
               PRIORITY_CONFIG[priority]?.color || 'bg-slate-100 text-slate-500'
             }`}>
@@ -523,6 +527,19 @@ export default function TaskDetails({ task, projectId, onClose, onUpdate, users 
                   className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
                   {Object.entries(PRIORITY_CONFIG).map(([k, c]) => (
                     <option key={k} value={k}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Issue Type */}
+              <div>
+                <label className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Tag className="w-3 h-3" /> Type
+                </label>
+                <select value={issueType} onChange={(e) => { setIssueType(e.target.value); saveField('issue_type', e.target.value) }}
+                  className="w-full h-8 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2.5 text-xs dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                  {ISSUE_TYPE_ORDER.map((k) => (
+                    <option key={k} value={k}>{ISSUE_TYPE_CONFIG[k].icon} {ISSUE_TYPE_CONFIG[k].label}</option>
                   ))}
                 </select>
               </div>

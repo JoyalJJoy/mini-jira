@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   updateTask, getComments, createComment,
-  STATUS_CONFIG, PRIORITY_CONFIG, STATUS_ORDER,
+  STATUS_CONFIG, PRIORITY_CONFIG, ISSUE_TYPE_CONFIG, STATUS_ORDER,
 } from '../api'
 import { toast } from './Toast'
 import { Button } from '@/components/ui/button'
@@ -58,6 +58,9 @@ export default function TaskCard({ task, onDelete, onUpdate, users }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
+              <span className="text-xs leading-none shrink-0" title={(ISSUE_TYPE_CONFIG[task.issue_type] || ISSUE_TYPE_CONFIG.task).label}>
+                {(ISSUE_TYPE_CONFIG[task.issue_type] || ISSUE_TYPE_CONFIG.task).icon}
+              </span>
               <p className={`truncate text-sm font-medium ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
                 {task.title}
               </p>

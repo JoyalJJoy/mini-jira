@@ -6,7 +6,7 @@ import {
   getProjects, createProject, updateProject, getMembers, addMember,
   getUsers, getTags, createTag,
   getWorkspaces, createWorkspace,
-  PRIORITY_CONFIG,
+  PRIORITY_CONFIG, ISSUE_TYPE_CONFIG, ISSUE_TYPE_ORDER,
 } from '../api'
 import Navbar from '../components/Navbar'
 import TaskCard from '../components/TaskCard'
@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState('p2')
+  const [issueType, setIssueType] = useState('task')
   const [assigneeId, setAssigneeId] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -192,9 +193,9 @@ export default function Dashboard() {
     if (!title.trim()) return
     setError('')
     try {
-      const task = await createTask(title, null, priority, activeProjectId, assigneeId || null, dueDate || null, selectedTagIds)
+      const task = await createTask(title, null, priority, activeProjectId, assigneeId || null, dueDate || null, selectedTagIds, issueType)
       setTasks((prev) => [task, ...prev])
-      setTitle(''); setDueDate(''); setSelectedTagIds([])
+      setTitle(''); setDueDate(''); setSelectedTagIds([]); setIssueType('task')
       toast('Task created!')
     } catch (err) { setError(err.message) }
   }
@@ -558,6 +559,13 @@ export default function Dashboard() {
               className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs font-medium dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
               {Object.entries(PRIORITY_CONFIG).map(([k, c]) => (
                 <option key={k} value={k}>{c.label}</option>
+              ))}
+            </select>
+
+            <select value={issueType} onChange={(e) => setIssueType(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs font-medium dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              {ISSUE_TYPE_ORDER.map((k) => (
+                <option key={k} value={k}>{ISSUE_TYPE_CONFIG[k].icon} {ISSUE_TYPE_CONFIG[k].label}</option>
               ))}
             </select>
 

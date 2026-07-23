@@ -370,6 +370,8 @@ class TaskService:
                 display_field = "status"
             elif field == "priority":
                 display_field = "priority"
+            elif field == "issue_type":
+                display_field = "type"
             elif field == "assignee_id":
                 display_field = "assignee"
             elif field == "column_id":

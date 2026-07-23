@@ -70,8 +70,8 @@ export const getUsers = () => request('/users/')
 export const getTasks = (projectId) =>
   request(`/tasks/${projectId ? `?project_id=${projectId}` : ''}`)
 
-export const createTask = (title, description, priority, projectId, assigneeId, dueDate, tagIds) =>
-  request('/tasks/', { method: 'POST', body: JSON.stringify({ title, description, priority, project_id: projectId, assignee_id: assigneeId, due_date: dueDate || null, tag_ids: tagIds || [] }) })
+export const createTask = (title, description, priority, projectId, assigneeId, dueDate, tagIds, issueType) =>
+  request('/tasks/', { method: 'POST', body: JSON.stringify({ title, description, priority, project_id: projectId, assignee_id: assigneeId, due_date: dueDate || null, tag_ids: tagIds || [], issue_type: issueType }) })
 
 export const updateTask = (taskId, data) =>
   request(`/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) })
@@ -247,5 +247,15 @@ export const PRIORITY_CONFIG = {
   p2: { label: 'P2', color: 'bg-blue-100 text-blue-700' },
   p3: { label: 'P3', color: 'bg-gray-100 text-gray-500' },
 }
+
+export const ISSUE_TYPE_CONFIG = {
+  story:   { label: 'Story',   icon: '📖', color: 'bg-blue-100 text-blue-700' },
+  task:    { label: 'Task',    icon: '✅', color: 'bg-green-100 text-green-700' },
+  bug:     { label: 'Bug',     icon: '🐛', color: 'bg-red-100 text-red-700' },
+  epic:    { label: 'Epic',    icon: '🚀', color: 'bg-purple-100 text-purple-700' },
+  subtask: { label: 'Subtask', icon: '🔹', color: 'bg-gray-100 text-gray-500' },
+}
+
+export const ISSUE_TYPE_ORDER = ['epic', 'story', 'task', 'bug', 'subtask']
 
 export const STATUS_ORDER = ['todo', 'in_progress', 'done']

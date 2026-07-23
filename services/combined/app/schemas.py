@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
-from app.models import TaskStatus, TaskPriority
+from app.models import TaskStatus, TaskPriority, IssueType
 
 
 # ── Auth / User ────────────────────────────────────────────────────
@@ -31,6 +31,7 @@ class TaskCreate(BaseModel):
     title: str
     description: str | None = None
     priority: TaskPriority | None = None
+    issue_type: IssueType | None = None
     project_id: str | None = None
     column_id: str | None = None
     assignee_id: str | None = None
@@ -47,6 +48,7 @@ class TaskUpdate(BaseModel):
     column_id: str | None = None
     position: int | None = None
     priority: TaskPriority | None = None
+    issue_type: IssueType | None = None
     project_id: str | None = None
     assignee_id: str | None = None
     due_date: datetime | None = None
@@ -63,6 +65,7 @@ class TaskResponse(BaseModel):
     column_id: str | None = None
     position: int = 0
     priority: TaskPriority
+    issue_type: str = "task"
     project_id: str | None
     assignee_id: str | None
     owner_id: str

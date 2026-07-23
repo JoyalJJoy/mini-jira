@@ -37,6 +37,14 @@ class TaskPriority(str, enum.Enum):
     P3 = "p3"
 
 
+class IssueType(str, enum.Enum):
+    STORY = "story"
+    TASK = "task"
+    BUG = "bug"
+    EPIC = "epic"
+    SUBTASK = "subtask"
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -46,6 +54,7 @@ class Task(Base):
     status: Mapped[str] = mapped_column(String(20), default=TaskStatus.TODO.value)
     column_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     priority: Mapped[str] = mapped_column(String(5), default=TaskPriority.P2.value)
+    issue_type: Mapped[str] = mapped_column(String(10), default=IssueType.TASK.value)
     owner_id: Mapped[str] = mapped_column(String, nullable=False)
     project_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     assignee_id: Mapped[str | None] = mapped_column(String, nullable=True)

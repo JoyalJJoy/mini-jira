@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import {
-  updateTask, PRIORITY_CONFIG,
+  updateTask, PRIORITY_CONFIG, ISSUE_TYPE_CONFIG,
   getBoards, createBoard, updateBoard, deleteBoard,
   getColumns, createColumn, updateColumn, deleteColumn,
 } from '../api'
@@ -435,9 +435,14 @@ export default function KanbanBoard({
                       >
                         {/* Title + priority */}
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-snug">
-                            {task.title}
-                          </p>
+                          <div className="flex items-start gap-1.5 min-w-0">
+                            <span className="text-xs leading-none shrink-0 mt-0.5" title={(ISSUE_TYPE_CONFIG[task.issue_type] || ISSUE_TYPE_CONFIG.task).label}>
+                              {(ISSUE_TYPE_CONFIG[task.issue_type] || ISSUE_TYPE_CONFIG.task).icon}
+                            </span>
+                            <p className="text-sm font-medium text-slate-900 dark:text-slate-100 leading-snug truncate">
+                              {task.title}
+                            </p>
+                          </div>
                           <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
                             (PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.p2).color
                           }`}>
