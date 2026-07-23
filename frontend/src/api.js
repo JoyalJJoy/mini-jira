@@ -173,6 +173,23 @@ export const updateColumn = (boardId, columnId, data) =>
 export const deleteColumn = (boardId, columnId) =>
   request(`/boards/${boardId}/columns/${columnId}`, { method: 'DELETE' })
 
+// Sprints
+export const getSprints = (projectId) => request(`/sprints/project/${projectId}`)
+export const createSprint = (projectId, name, goal) =>
+  request('/sprints/', { method: 'POST', body: JSON.stringify({ project_id: projectId, name, goal }) })
+export const updateSprint = (sprintId, data) =>
+  request(`/sprints/${sprintId}`, { method: 'PATCH', body: JSON.stringify(data) })
+export const startSprint = (sprintId) =>
+  request(`/sprints/${sprintId}/start`, { method: 'POST' })
+export const completeSprint = (sprintId) =>
+  request(`/sprints/${sprintId}/complete`, { method: 'POST' })
+export const deleteSprint = (sprintId) =>
+  request(`/sprints/${sprintId}`, { method: 'DELETE' })
+export const addTaskToSprint = (sprintId, taskId) =>
+  request(`/sprints/${sprintId}/tasks/${taskId}`, { method: 'POST' })
+export const removeTaskFromSprint = (sprintId, taskId) =>
+  request(`/sprints/${sprintId}/tasks/${taskId}`, { method: 'DELETE' })
+
 // Checklists
 export const getChecklists = (taskId) => request(`/tasks/${taskId}/checklists`)
 export const createChecklist = (taskId, title) =>

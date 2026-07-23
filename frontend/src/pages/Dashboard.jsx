@@ -11,12 +11,13 @@ import {
 import Navbar from '../components/Navbar'
 import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
+import SprintManager from '../components/SprintManager'
 import TaskDetails from '../components/TaskDetails'
 import { toast } from '../components/Toast'
 import WorkspaceSettings from '../components/WorkspaceSettings'
 import ProjectSettings from '../components/ProjectSettings'
 import useRealtime from '../hooks/useRealtime'
-import { X, Plus, Settings } from 'lucide-react'
+import { X, Plus, Settings, LayoutList } from 'lucide-react'
 
 const PROJECT_ICONS = ['📋', '🚀', '🎨', '🌐', '📊', '⚙️', '📦', '🛠️', '🏗️', '📝', '💻', '🎯', '📈', '🤖', '🧩', '🗂️', '🎮', '🏆']
 const PROJECT_COLORS = ['#3B82F6', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4', '#64748B']
@@ -64,6 +65,9 @@ export default function Dashboard() {
 
   // Task details panel
   const [detailsTask, setDetailsTask] = useState(null)
+
+  // Sprint panel
+  const [showSprints, setShowSprints] = useState(false)
 
   // Create-tag form
   const [showCreateTag, setShowCreateTag] = useState(false)
@@ -641,51 +645,78 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Status filter tabs */}
-        <div className="mb-4 flex gap-1">
-          {FILTERS.map((f) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                filter === f
+        {/* Status filter tabs + sprint toggle */}
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex gap-1 flex-1">
+            {FILTERS.map((f) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                  filter === f
+                    ? 'bg-blue-600 text-white dark:bg-blue-500'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}>
+                {f === 'in_progress' ? 'In Progress' : f}
+                {f !== 'all' && (
+                  <span className="ml-1 opacity-60">
+                    ({tasks.filter((t) => t.status === f).length})
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {activeProjectId && (
+            <button onClick={() => setShowSprints((s) => !s)}
+              className={`inline-flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-colors ${
+                showSprints
                   ? 'bg-blue-600 text-white dark:bg-blue-500'
                   : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
               }`}>
-              {f === 'in_progress' ? 'In Progress' : f}
-              {f !== 'all' && (
-                <span className="ml-1 opacity-60">
-                  ({tasks.filter((t) => t.status === f).length})
-                </span>
-              )}
+              <LayoutList className="w-3.5 h-3.5" />
+              Sprints
             </button>
-          ))}
+          )}
         </div>
 
         {/* Task display */}
-        {viewMode === 'kanban' ? (
-          <KanbanBoard
-            projectId={activeProjectId}
-            tasks={tasks}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-            users={users}
-            commentsByTask={commentsByTask}
-            onToggleComments={handleToggleComments}
-            onTaskClick={setDetailsTask}
-          />
-        ) : (
-          <div className="flex flex-col gap-2">
-            {filteredTasks.length === 0 ? (
-              <p className="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                {tasks.length === 0 ? 'No tasks yet. Create one above!' : `No ${filter === 'all' ? '' : filter + ' '}tasks.`}
-              </p>
-            ) : (
-              filteredTasks.map((task) => (
-                <TaskCard key={task.id} task={task}
-                  onDelete={handleDelete} onUpdate={handleUpdate} users={users} />
-              ))
-            )}
-          </div>
-        )}
+        <div className={`${showSprints && activeProjectId ? 'grid grid-cols-[320px_1fr] gap-4' : ''}`}>
+          {/* Sprint side panel */}
+          {showSprints && activeProjectId && (
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 max-h-[calc(100vh-300px)] overflow-y-auto">
+              <SprintManager
+                projectId={activeProjectId}
+                tasks={tasks}
+                onUpdate={handleUpdate}
+                users={users}
+              />
+            </div>
+          )}
+
+          {viewMode === 'kanban' ? (
+            <KanbanBoard
+              projectId={activeProjectId}
+              tasks={tasks}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+              users={users}
+              commentsByTask={commentsByTask}
+              onToggleComments={handleToggleComments}
+              onTaskClick={setDetailsTask}
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {filteredTasks.length === 0 ? (
+                <p className="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
+                  {tasks.length === 0 ? 'No tasks yet. Create one above!' : `No ${filter === 'all' ? '' : filter + ' '}tasks.`}
+                </p>
+              ) : (
+                filteredTasks.map((task) => (
+                  <TaskCard key={task.id} task={task}
+                    onDelete={handleDelete} onUpdate={handleUpdate} users={users} />
+                ))
+              )}
+            </div>
+          )}
+        </div>
       </main>
     </div>
   )

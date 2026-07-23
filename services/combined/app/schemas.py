@@ -36,6 +36,7 @@ class TaskCreate(BaseModel):
     assignee_id: str | None = None
     due_date: datetime | None = None
     estimated_time: int | None = None
+    sprint_id: str | None = None
     tag_ids: list[str] = []
 
 
@@ -50,6 +51,7 @@ class TaskUpdate(BaseModel):
     assignee_id: str | None = None
     due_date: datetime | None = None
     estimated_time: int | None = None
+    sprint_id: str | None = None
     tag_ids: list[str] | None = None
 
 
@@ -66,10 +68,41 @@ class TaskResponse(BaseModel):
     owner_id: str
     due_date: datetime | None = None
     estimated_time: int | None = None
+    sprint_id: str | None = None
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+
+# ── Sprint ─────────────────────────────────────────────────────────
+
+class SprintCreate(BaseModel):
+    project_id: str
+    name: str
+    goal: str | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+
+
+class SprintUpdate(BaseModel):
+    name: str | None = None
+    goal: str | None = None
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+
+
+class SprintResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    goal: str | None = None
+    status: str
+    start_date: datetime | None = None
+    end_date: datetime | None = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── Workspace ──────────────────────────────────────────────────────

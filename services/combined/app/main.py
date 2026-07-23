@@ -8,10 +8,10 @@ from sqlalchemy import text
 from app.config import settings
 from app.models import Base
 from app.db import engine
-from app.routes import auth, users, tasks, projects, comments, tags, events, workspaces, boards, task_extras
+from app.routes import auth, users, tasks, projects, comments, tags, events, workspaces, boards, task_extras, sprints
 
 # Ensure all models are imported so create_all discovers them
-from app.models import User, Task, Project, ProjectMember, Workspace, WorkspaceMember, Comment, Tag, TaskTag, Board, Column, ChecklistItem, Attachment, Activity  # noqa: F401
+from app.models import User, Task, Project, ProjectMember, Workspace, WorkspaceMember, Comment, Tag, TaskTag, Board, Column, ChecklistItem, Attachment, Activity, Sprint  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,6 +30,7 @@ async def lifespan(app: FastAPI):
             "ALTER TABLE tasks ADD COLUMN column_id VARCHAR",
             "ALTER TABLE tasks ADD COLUMN position INTEGER DEFAULT 0",
             "ALTER TABLE tasks ADD COLUMN estimated_time INTEGER",
+            "ALTER TABLE tasks ADD COLUMN sprint_id VARCHAR",
         ]
         for stmt in migrations:
             try:
@@ -95,6 +96,7 @@ app.include_router(events.router)
 app.include_router(workspaces.router)
 app.include_router(boards.router)
 app.include_router(task_extras.router)
+app.include_router(sprints.router)
 
 
 @app.get("/health")
