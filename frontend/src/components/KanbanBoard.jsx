@@ -342,19 +342,20 @@ export default function KanbanBoard({
               const isDragOver = dragOverCol === col.id
 
               return (
-                <div
-                  key={col.id}
-                  className="flex-shrink-0 w-72"
-                  onDragOver={(e) => { if (!hasColumns) return; e.preventDefault(); setDragOverCol(col.id) }}
-                  onDragLeave={() => setDragOverCol(null)}
-                  onDrop={(e) => handleTaskDrop(e, col.id)}
-                >
-                  {/* Column header */}
+                <div key={col.id} className="flex-shrink-0 w-72">
+                  {/* Column header — draggable for column reorder */}
                   <div
                     draggable={hasColumns}
                     onDragStart={() => handleColDragStart(colIdx)}
-                    onDragOver={(e) => handleColDragOver(e, colIdx)}
-                    onDrop={(e) => handleColDrop(e, colIdx)}
+                    onDragOver={(e) => {
+                      if (draggedColIdx.current == null) return // only handle column drags
+                      e.preventDefault()
+                      setDragOverColIdx(colIdx)
+                    }}
+                    onDrop={(e) => {
+                      if (draggedColIdx.current == null) return // only handle column drags
+                      handleColDrop(e, colIdx)
+                    }}
                     className={`rounded-t-xl border-2 border-b-0 px-3 py-2 flex items-center justify-between transition-colors ${
                       isDragOver
                         ? 'border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-900/20'
@@ -396,8 +397,11 @@ export default function KanbanBoard({
                     </div>
                   </div>
 
-                  {/* Task list */}
+                  {/* Task list — drop zone for tasks */}
                   <div
+                    onDragOver={(e) => { if (!hasColumns) return; e.preventDefault(); setDragOverCol(col.id) }}
+                    onDragLeave={() => setDragOverCol(null)}
+                    onDrop={(e) => handleTaskDrop(e, col.id)}
                     className={`rounded-b-xl border-2 border-t-0 p-2 flex flex-col gap-2 min-h-[120px] transition-colors ${
                       isDragOver
                         ? 'border-blue-400 bg-blue-50/50 dark:border-blue-500 dark:bg-blue-900/10'
