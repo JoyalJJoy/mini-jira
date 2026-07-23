@@ -86,9 +86,8 @@ app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=li
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True,
+    allow_methods=["*"],
 )
 
 # Register all route modules
