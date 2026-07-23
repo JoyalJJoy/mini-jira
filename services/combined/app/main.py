@@ -18,6 +18,11 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.info("Starting Mini Jira backend")
+    logging.info("Database: %s", engine.dialect.name)
+    logging.info("Clerk JWKS URL configured: %s", bool(settings.clerk_jwks_url))
+    logging.info("Clerk secret key configured: %s", bool(settings.clerk_secret_key))
+
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
