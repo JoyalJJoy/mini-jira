@@ -7,7 +7,7 @@ import {
 import { X, UserPlus, Trash2 } from 'lucide-react'
 import { toast } from './Toast'
 
-export default function WorkspaceSettings({ workspaceId, onClose, onWorkspaceDeleted }) {
+export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWorkspaceDeleted }) {
   const [workspace, setWorkspace] = useState(null)
   const [members, setMembers] = useState([])
   const [users, setUsers] = useState([])
@@ -41,7 +41,9 @@ export default function WorkspaceSettings({ workspaceId, onClose, onWorkspaceDel
     try {
       const updated = await updateWorkspace(workspaceId, { name, description: description || null })
       setWorkspace(updated)
+      if (onUpdate) onUpdate(updated)
       toast('Workspace updated!')
+      onClose()
     } catch (err) {
       toast(err.message, 'error')
     }

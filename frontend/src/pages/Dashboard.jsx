@@ -238,6 +238,10 @@ export default function Dashboard() {
     setProjects([])
   }
 
+  const handleUpdateWorkspace = (updated) => {
+    setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)))
+  }
+
   const handleWorkspaceDeleted = () => {
     localStorage.removeItem('activeWorkspaceId')
     setActiveWorkspaceId(null)
@@ -265,6 +269,7 @@ export default function Dashboard() {
 
   const handleUpdateProject = (updated) => {
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+    setSettingsProject((prev) => (prev?.id === updated.id ? updated : prev))
     loadTasks()
   }
 
@@ -383,6 +388,7 @@ export default function Dashboard() {
         <WorkspaceSettings
           workspaceId={activeWorkspaceId}
           onClose={() => setShowWorkspaceSettings(false)}
+          onUpdate={handleUpdateWorkspace}
           onWorkspaceDeleted={handleWorkspaceDeleted}
         />
       )}
