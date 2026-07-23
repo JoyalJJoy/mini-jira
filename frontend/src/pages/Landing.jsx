@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearToken } from '../api'
 import {
@@ -7,6 +7,9 @@ import {
 } from 'lucide-react'
 import TiltCard from '../components/TiltCard'
 import useScrollReveal from '../hooks/useScrollReveal'
+
+// Lazy-load the 3D scene so it doesn't block initial render
+const Hero3DScene = lazy(() => import('../components/Hero3DScene'))
 
 const features = [
   {
@@ -42,21 +45,6 @@ const stats = [
 ]
 
 // ── Sub-components ────────────────────────────────────────────────
-
-function FloatingOrbs() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none -z-5">
-      {/* Orb 1 — large blue */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/20 to-blue-600/5 blur-3xl animate-float-slow" />
-      {/* Orb 2 — medium purple */}
-      <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-violet-400/15 to-purple-600/5 blur-3xl animate-float-slower" />
-      {/* Orb 3 — small emerald */}
-      <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-gradient-to-br from-emerald-400/10 to-teal-600/5 blur-3xl animate-float" />
-      {/* Orb 4 — tiny accent */}
-      <div className="absolute top-1/2 left-2/3 w-32 h-32 rounded-full bg-gradient-to-br from-amber-300/10 to-orange-500/5 blur-2xl animate-float-slower" />
-    </div>
-  )
-}
 
 function GridBackground() {
   return (
@@ -103,7 +91,6 @@ function FeatureCard({ icon: Icon, title, desc, color, index }) {
           className="relative h-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 hover:border-white/20 hover:shadow-2xl hover:shadow-blue-500/5 transition-all duration-300 overflow-hidden"
           style={{ transform: 'translateZ(20px)' }}
         >
-          {/* Glare */}
           <div
             ref={glareRef}
             className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300"
@@ -146,19 +133,11 @@ function StatBar() {
   )
 }
 
-// ── Hero section with floating 3D shapes ──────────────────────────
+// ── 3D Scene fallback ─────────────────────────────────────────────
 
-function Hero3DShapes() {
+function SceneFallback() {
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none -z-5" aria-hidden="true">
-      {/* 3D-like floating geometric shapes using CSS */}
-      <div className="absolute top-20 left-[15%] w-16 h-16 border border-blue-400/20 rounded-lg rotate-12 animate-float-slow opacity-40" />
-      <div className="absolute top-40 right-[20%] w-12 h-12 border border-violet-400/20 rounded-full animate-float-slower opacity-30" />
-      <div className="absolute bottom-32 left-[25%] w-20 h-20 border border-emerald-400/10 rounded-full animate-float opacity-20" />
-      <div className="absolute top-1/3 right-[35%] w-8 h-8 border border-amber-400/20 rotate-45 animate-float-slow opacity-30" />
-      <div className="absolute bottom-48 right-[15%] w-14 h-14 border border-blue-400/15 rounded-xl rotate-[30deg] animate-float-slower opacity-25" />
-      <div className="absolute top-[60%] left-[10%] w-10 h-10 border border-purple-400/10 rounded-lg rotate-[60deg] animate-float opacity-20" />
-    </div>
+    <div className="absolute inset-0 -z-5 bg-gradient-to-b from-slate-950/80 via-slate-900/50 to-slate-950/80" />
   )
 }
 
@@ -166,6 +145,23 @@ function Hero3DShapes() {
 
 export default function Landing() {
   const navigate = useNavigate()
+  const mouse = useRef({ x: 0, y: 0 })
+  const heroRef = useRef(null)
+
+  // Track mouse position relative to the hero section
+  useEffect(() => {
+    const hero = heroRef.current
+    if (!hero) return
+    const handleMouse = (e) => {
+      const rect = hero.getBoundingClientRect()
+      mouse.current = {
+        x: ((e.clientX - rect.left) / rect.width - 0.5) * 2,
+        y: ((e.clientY - rect.top) / rect.height - 0.5) * 2,
+      }
+    }
+    window.addEventListener('mousemove', handleMouse, { passive: true })
+    return () => window.removeEventListener('mousemove', handleMouse)
+  }, [])
 
   const handleGetStarted = () => {
     clearToken()
@@ -179,13 +175,22 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
       {/* ── Hero Section ─────────────────────────────────────────────── */}
-      <section className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+      <section
+        ref={heroRef}
+        className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
+      >
         <GridBackground />
-        <FloatingOrbs />
-        <Hero3DShapes />
+
+        {/* Real 3D scene with Three.js */}
+        <Suspense fallback={<SceneFallback />}>
+          <Hero3DScene mouse={mouse} />
+        </Suspense>
+
+        {/* Gradient overlay at bottom of hero for smooth transition */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-slate-950 to-transparent z-0" />
 
         {/* Navbar */}
-        <nav className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 max-w-7xl mx-auto w-full">
+        <nav className="relative z-20 flex items-center justify-between px-4 sm:px-8 py-4 max-w-7xl mx-auto w-full">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <CheckCircle className="w-5 h-5 text-white" />
@@ -272,7 +277,6 @@ export default function Landing() {
       {/* ── Features Section ─────────────────────────────────────────── */}
       <section className="relative py-24 px-4 bg-slate-950">
         <div className="max-w-6xl mx-auto">
-          {/* Section header */}
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 mb-4">
               <Zap className="w-3 h-3 text-blue-400" />
@@ -280,23 +284,21 @@ export default function Landing() {
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-white">
               Built for{' '}
-            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-              real teams
-            </span>
-          </h2>
-          <p className="mt-4 text-slate-400 max-w-xl mx-auto">
-            No complicated setup. Just create a workspace, invite your team, and start shipping.
-          </p>
-        </div>
+              <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+                real teams
+              </span>
+            </h2>
+            <p className="mt-4 text-slate-400 max-w-xl mx-auto">
+              No complicated setup. Just create a workspace, invite your team, and start shipping.
+            </p>
+          </div>
 
-          {/* Feature cards */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {features.map((f, i) => (
               <FeatureCard key={f.title} {...f} index={i} />
             ))}
           </div>
 
-          {/* Stats */}
           <div className="mt-20">
             <StatBar />
           </div>
@@ -308,8 +310,10 @@ export default function Landing() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-blue-600/10 via-violet-600/5 to-slate-900 p-10 sm:p-16 overflow-hidden">
             <GridBackground />
-            <FloatingOrbs />
-
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/10 to-blue-600/5 blur-3xl" />
+              <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-violet-400/10 to-purple-600/5 blur-3xl" />
+            </div>
             <div className="relative z-10">
               <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
                 Start shipping today
@@ -345,28 +349,11 @@ export default function Landing() {
 
       {/* ── Animations ───────────────────────────────────────────────── */}
       <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(3deg); }
-        }
-        @keyframes float-slow {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-12px) rotate(-2deg); }
-        }
-        @keyframes float-slower {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-8px) rotate(1deg); }
-        }
         @keyframes scroll-dot {
           0%, 100% { transform: translateY(0); opacity: 1; }
           50% { transform: translateY(6px); opacity: 0.3; }
         }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
-        .animate-float-slower { animation: float-slower 10s ease-in-out infinite; }
         .animate-scroll-dot { animation: scroll-dot 2s ease-in-out infinite; }
-
-        /* Tilt card base */
         .tilt-card {
           transform-style: preserve-3d;
           will-change: transform;
