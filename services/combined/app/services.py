@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, delete
-from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag, Workspace, WorkspaceMember
+from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag, Workspace, WorkspaceMember, Activity
 from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate, TagCreate, WorkspaceCreate, WorkspaceUpdate, WorkspaceMemberUpdate
 from app.security import hash_password, verify_password, create_access_token
 from app.event_bus import event_bus
@@ -299,6 +299,9 @@ class TaskService:
         for tag_id in tag_ids:
             self.db.add(TaskTag(task_id=task.id, tag_id=tag_id))
 
+        # Log activity
+        self.db.add(Activity(task_id=task.id, user_id=user_id, action="created", field_name="task", new_value=task.title))
+
         await self.db.commit()
         await self.db.refresh(task)
         await event_bus.publish("task.created", {
@@ -362,7 +365,31 @@ class TaskService:
         update_data = data.model_dump(exclude_unset=True, exclude={"tag_ids"})
 
         for field, value in update_data.items():
+            old_val = getattr(task, field, None)
+            if field == "status":
+                display_field = "status"
+            elif field == "priority":
+                display_field = "priority"
+            elif field == "assignee_id":
+                display_field = "assignee"
+            elif field == "column_id":
+                display_field = "column"
+            elif field == "due_date":
+                display_field = "due date"
+            elif field == "estimated_time":
+                display_field = "estimated time"
+            else:
+                display_field = field
             setattr(task, field, value)
+            new_val = getattr(task, field, None)
+            if old_val != new_val:
+                self.db.add(Activity(
+                    task_id=task.id, user_id=user_id,
+                    action=f"updated_{field}",
+                    field_name=display_field,
+                    old_value=str(old_val) if old_val is not None else None,
+                    new_value=str(new_val) if new_val is not None else None,
+                ))
 
         # Update tag links if provided
         if tag_ids is not None:
@@ -387,6 +414,7 @@ class TaskService:
             return False
         project_id = task.project_id
         await self.db.execute(delete(TaskTag).where(TaskTag.task_id == task.id))
+        self.db.add(Activity(task_id=task.id, user_id=user_id, action="deleted", field_name="task", old_value=task.title))
         await self.db.delete(task)
         await self.db.commit()
         await event_bus.publish("task.deleted", {

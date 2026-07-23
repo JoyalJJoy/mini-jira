@@ -50,6 +50,7 @@ class Task(Base):
     project_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     assignee_id: Mapped[str | None] = mapped_column(String, nullable=True)
     due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    estimated_time: Mapped[int | None] = mapped_column(default=None)  # minutes
     position: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(
@@ -57,6 +58,49 @@ class Task(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+
+
+# ── Checklist Item ────────────────────────────────────────────────
+
+class ChecklistItem(Base):
+    __tablename__ = "checklist_items"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    position: Mapped[int] = mapped_column(default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ── Attachment ────────────────────────────────────────────────────
+
+class Attachment(Base):
+    __tablename__ = "attachments"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    author_id: Mapped[str] = mapped_column(String, nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_size: Mapped[int] = mapped_column(default=0)
+    content_type: Mapped[str] = mapped_column(String(100), default="application/octet-stream")
+    file_data: Mapped[str] = mapped_column(Text, nullable=True)  # base64 encoded
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+# ── Activity ──────────────────────────────────────────────────────
+
+class Activity(Base):
+    __tablename__ = "activities"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    task_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    action: Mapped[str] = mapped_column(String(50), nullable=False)  # created, updated_status, updated_priority, added_comment, etc.
+    field_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 # ── Workspace ─────────────────────────────────────────────────────

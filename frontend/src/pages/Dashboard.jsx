@@ -11,6 +11,7 @@ import {
 import Navbar from '../components/Navbar'
 import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
+import TaskDetails from '../components/TaskDetails'
 import { toast } from '../components/Toast'
 import WorkspaceSettings from '../components/WorkspaceSettings'
 import ProjectSettings from '../components/ProjectSettings'
@@ -60,6 +61,9 @@ export default function Dashboard() {
 
   // Project settings modal
   const [settingsProject, setSettingsProject] = useState(null)
+
+  // Task details panel
+  const [detailsTask, setDetailsTask] = useState(null)
 
   // Create-tag form
   const [showCreateTag, setShowCreateTag] = useState(false)
@@ -402,6 +406,16 @@ export default function Dashboard() {
         />
       )}
 
+      {detailsTask && (
+        <TaskDetails
+          task={detailsTask}
+          projectId={activeProjectId}
+          onClose={() => setDetailsTask(null)}
+          onUpdate={(updated) => { handleUpdate(updated); setDetailsTask(updated) }}
+          users={users}
+        />
+      )}
+
       {/* Create project modal */}
       {showCreateProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -656,6 +670,7 @@ export default function Dashboard() {
             users={users}
             commentsByTask={commentsByTask}
             onToggleComments={handleToggleComments}
+            onTaskClick={setDetailsTask}
           />
         ) : (
           <div className="flex flex-col gap-2">

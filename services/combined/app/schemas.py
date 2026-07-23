@@ -35,6 +35,7 @@ class TaskCreate(BaseModel):
     column_id: str | None = None
     assignee_id: str | None = None
     due_date: datetime | None = None
+    estimated_time: int | None = None
     tag_ids: list[str] = []
 
 
@@ -48,6 +49,7 @@ class TaskUpdate(BaseModel):
     project_id: str | None = None
     assignee_id: str | None = None
     due_date: datetime | None = None
+    estimated_time: int | None = None
     tag_ids: list[str] | None = None
 
 
@@ -63,6 +65,7 @@ class TaskResponse(BaseModel):
     assignee_id: str | None
     owner_id: str
     due_date: datetime | None = None
+    estimated_time: int | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -156,6 +159,59 @@ class ProjectMemberResponse(BaseModel):
     project_id: str
     user_id: str
     role: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Checklist Item ────────────────────────────────────────────────
+
+class ChecklistItemCreate(BaseModel):
+    title: str
+
+
+class ChecklistItemUpdate(BaseModel):
+    title: str | None = None
+    is_done: bool | None = None
+    position: int | None = None
+
+
+class ChecklistItemResponse(BaseModel):
+    id: str
+    task_id: str
+    title: str
+    is_done: bool
+    position: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Attachment ────────────────────────────────────────────────────
+
+class AttachmentResponse(BaseModel):
+    id: str
+    task_id: str
+    author_id: str
+    file_name: str
+    file_size: int
+    content_type: str
+    file_data: str | None = None  # base64
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ── Activity ──────────────────────────────────────────────────────
+
+class ActivityResponse(BaseModel):
+    id: str
+    task_id: str
+    user_id: str
+    action: str
+    field_name: str | None = None
+    old_value: str | None = None
+    new_value: str | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

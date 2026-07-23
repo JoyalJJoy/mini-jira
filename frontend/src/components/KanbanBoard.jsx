@@ -18,7 +18,7 @@ function formatDate(d) {
 
 export default function KanbanBoard({
   projectId, tasks, onUpdate, onDelete,
-  users, commentsByTask, onToggleComments,
+  users, commentsByTask, onToggleComments, onTaskClick,
 }) {
   const [boards, setBoards] = useState([])
   const [activeBoardId, setActiveBoardId] = useState(null)
@@ -430,7 +430,8 @@ export default function KanbanBoard({
                         key={task.id}
                         draggable
                         onDragStart={(e) => handleTaskDragStart(e, task)}
-                        className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow group"
+                        onClick={() => onTaskClick?.(task)}
+                        className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer hover:shadow-md active:shadow-sm transition-all group"
                       >
                         {/* Title + priority */}
                         <div className="flex items-start justify-between gap-2">

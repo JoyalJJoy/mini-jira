@@ -173,6 +173,38 @@ export const updateColumn = (boardId, columnId, data) =>
 export const deleteColumn = (boardId, columnId) =>
   request(`/boards/${boardId}/columns/${columnId}`, { method: 'DELETE' })
 
+// Checklists
+export const getChecklists = (taskId) => request(`/tasks/${taskId}/checklists`)
+export const createChecklist = (taskId, title) =>
+  request(`/tasks/${taskId}/checklists`, { method: 'POST', body: JSON.stringify({ title }) })
+export const updateChecklist = (taskId, itemId, data) =>
+  request(`/tasks/${taskId}/checklists/${itemId}`, { method: 'PATCH', body: JSON.stringify(data) })
+export const deleteChecklist = (taskId, itemId) =>
+  request(`/tasks/${taskId}/checklists/${itemId}`, { method: 'DELETE' })
+
+// Attachments
+export const getAttachments = (taskId) => request(`/tasks/${taskId}/attachments`)
+export const uploadAttachment = (taskId, file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  // Override Content-Type for multipart
+  const token = localStorage.getItem('access_token')
+  return fetch(`${API}/tasks/${taskId}/attachments`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+  }).then(async (res) => {
+    const text = await res.text()
+    if (!res.ok) throw new Error(JSON.parse(text).detail || 'Upload failed')
+    return JSON.parse(text)
+  })
+}
+export const deleteAttachment = (taskId, attId) =>
+  request(`/tasks/${taskId}/attachments/${attId}`, { method: 'DELETE' })
+
+// Activity
+export const getActivity = (taskId) => request(`/tasks/${taskId}/activity`)
+
 // Real-time events (SSE)
 export function subscribeToEvents(tokenProvider) {
   const base = API.replace('/api/v1', '')
