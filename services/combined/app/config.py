@@ -18,5 +18,18 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env"}
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Render.com provides DATABASE_URL as "postgresql://..." but
+        # SQLAlchemy async needs "postgresql+asyncpg://..."
+        if self.database_url and self.database_url.startswith("postgresql://"):
+            self.database_url = self.database_url.replace(
+                "postgresql://", "postgresql+asyncpg://", 1
+            )
+        # Also handle the internal Render env var format
+        if self.database_url and self.database_url.startswith("postgresql+asyncpg://"):
+            # If it still starts with postgresql:// after replacement, or already has +asyncpg, that's fine
+            pass
+
 
 settings = Settings()

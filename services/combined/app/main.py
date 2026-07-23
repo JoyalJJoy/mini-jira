@@ -21,23 +21,28 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-        # ── Migration: add columns for existing projects ──────────
-        # These are safe — SQLAlchemy will silently skip if columns already exist
-        migrations = [
-            "ALTER TABLE projects ADD COLUMN icon VARCHAR(10) DEFAULT '📋'",
-            "ALTER TABLE projects ADD COLUMN color VARCHAR(20) DEFAULT '#3B82F6'",
-            "ALTER TABLE projects ADD COLUMN is_archived BOOLEAN DEFAULT 0",
-            "ALTER TABLE tasks ADD COLUMN column_id VARCHAR",
-            "ALTER TABLE tasks ADD COLUMN position INTEGER DEFAULT 0",
-            "ALTER TABLE tasks ADD COLUMN estimated_time INTEGER",
-            "ALTER TABLE tasks ADD COLUMN sprint_id VARCHAR",
-            "ALTER TABLE tasks ADD COLUMN issue_type VARCHAR(10) DEFAULT 'task'",
-        ]
-        for stmt in migrations:
-            try:
-                await conn.execute(text(stmt))
-            except Exception:
-                pass  # column already exists
+        # Detect database type — SQLite needs manual ALTER TABLE migrations
+        # for columns added after the initial deploy. PostgreSQL gets everything
+        # from create_all since it's a fresh managed database.
+        dialect = engine.dialect.name  # "sqlite" or "postgresql"
+
+        if dialect == "sqlite":
+            # ── Migration: add columns for existing projects ──────
+            migrations = [
+                "ALTER TABLE projects ADD COLUMN icon VARCHAR(10) DEFAULT '📋'",
+                "ALTER TABLE projects ADD COLUMN color VARCHAR(20) DEFAULT '#3B82F6'",
+                "ALTER TABLE projects ADD COLUMN is_archived BOOLEAN DEFAULT 0",
+                "ALTER TABLE tasks ADD COLUMN column_id VARCHAR",
+                "ALTER TABLE tasks ADD COLUMN position INTEGER DEFAULT 0",
+                "ALTER TABLE tasks ADD COLUMN estimated_time INTEGER",
+                "ALTER TABLE tasks ADD COLUMN sprint_id VARCHAR",
+                "ALTER TABLE tasks ADD COLUMN issue_type VARCHAR(10) DEFAULT 'task'",
+            ]
+            for stmt in migrations:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception:
+                    pass  # column already exists
 
         # ── Migration: auto-create default board + columns for projects missing one
         from app.models import Board, Column

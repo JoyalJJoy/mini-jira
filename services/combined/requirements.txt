@@ -1,6 +1,7 @@
 fastapi[standard]
 sqlalchemy[asyncio]
 aiosqlite
+asyncpg
 pyjwt[crypto]
 pwdlib[argon2]
 greenlet
