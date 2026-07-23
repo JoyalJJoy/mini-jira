@@ -62,6 +62,7 @@ export default function Dashboard() {
 
   const navigate = useNavigate()
   const initialLoad = useRef(true)
+  const previousWorkspaceRef = useRef(null)
 
   // ── Auth guard ──────────────────────────────────────────────────
   useEffect(() => {
@@ -90,6 +91,14 @@ export default function Dashboard() {
         }
       }
     } catch { /* */ }
+  }, [activeWorkspaceId])
+
+  // Track workspace changes to reset project auto-select
+  useEffect(() => {
+    if (previousWorkspaceRef.current && previousWorkspaceRef.current !== activeWorkspaceId) {
+      initialLoad.current = true
+    }
+    previousWorkspaceRef.current = activeWorkspaceId
   }, [activeWorkspaceId])
 
   const loadProjects = useCallback(async () => {
@@ -178,18 +187,30 @@ export default function Dashboard() {
   }
 
   // ── Workspace actions ───────────────────────────────────────────
+  const [wsCreating, setWsCreating] = useState(false)
+  const [wsError, setWsError] = useState('')
+
   const handleCreateWorkspace = async (e) => {
     e.preventDefault()
     if (!wsName.trim()) return
+    setWsCreating(true)
+    setWsError('')
     try {
       const ws = await createWorkspace(wsName, null)
       setWorkspaces((prev) => [...prev, ws])
       setActiveWorkspaceId(ws.id)
       localStorage.setItem('activeWorkspaceId', ws.id)
+      setActiveProjectId(null)
+      setProjects([])
+      setTasks([])
       setWsName('')
       setShowCreateWorkspace(false)
       toast('Workspace created!')
-    } catch (err) { setError(err.message) }
+    } catch (err) {
+      setWsError(err.message)
+    } finally {
+      setWsCreating(false)
+    }
   }
 
   const handleWorkspaceChange = (wsId) => {
@@ -297,13 +318,26 @@ export default function Dashboard() {
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex items-center justify-center">
         <form onSubmit={handleCreateWorkspace} className="w-full max-w-sm space-y-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">New Workspace</h2>
+          {wsError && (
+            <div className="rounded-md bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 px-3 py-2 text-xs text-red-700 dark:text-red-400">
+              {wsError}
+            </div>
+          )}
           <input type="text" placeholder="Workspace name" required value={wsName}
             onChange={(e) => setWsName(e.target.value)}
-            className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            disabled={wsCreating}
+            className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50" />
           <div className="flex gap-2">
-            <button type="submit"
-              className="rounded-lg bg-blue-600 text-white px-4 py-1.5 text-sm font-medium hover:bg-blue-700 transition-colors">Create</button>
-            <button type="button" onClick={() => setShowCreateWorkspace(false)}
+            <button type="submit" disabled={wsCreating}
+              className="rounded-lg bg-blue-600 text-white px-4 py-1.5 text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              {wsCreating ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating...
+                </span>
+              ) : 'Create'}
+            </button>
+            <button type="button" onClick={() => { setShowCreateWorkspace(false); setWsError(''); }}
               className="rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 px-4 py-1.5 text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">Cancel</button>
           </div>
         </form>
