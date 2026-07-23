@@ -1,29 +1,168 @@
+import { useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearToken } from '../api'
-import { CheckCircle, Users, MessageSquare, ArrowRight, Layout } from 'lucide-react'
+import {
+  CheckCircle, Users, MessageSquare, Layout,
+  ArrowRight, Sparkles, Zap,
+} from 'lucide-react'
+import TiltCard from '../components/TiltCard'
+import useScrollReveal from '../hooks/useScrollReveal'
 
 const features = [
   {
     icon: Layout,
-    title: 'Project Management',
-    desc: 'Organize work into projects. Track everything in one place with clear status and priority.',
+    title: 'Project Boards',
+    desc: 'Kanban boards with drag & drop. Move tasks through Todo → In Progress → Done with ease.',
+    color: 'from-blue-500 to-cyan-400',
   },
   {
     icon: Users,
-    title: 'Team Collaboration',
-    desc: 'Invite team members to projects. Assign tasks, share progress, and work together in real time.',
+    title: 'Team Sync',
+    desc: 'Invite members, assign tasks, and collaborate in real time. Everyone stays in the loop.',
+    color: 'from-violet-500 to-purple-400',
   },
   {
     icon: MessageSquare,
-    title: 'Task Comments',
-    desc: 'Discuss tasks inline with comments. Keep context close to the work that matters.',
+    title: 'Live Comments',
+    desc: 'Discuss tasks inline with threaded comments. Real-time updates across the team.',
+    color: 'from-emerald-500 to-teal-400',
   },
   {
-    icon: CheckCircle,
-    title: 'Status Tracking',
-    desc: 'Move tasks from Todo → In Progress → Done. Stay on top of what needs attention.',
+    icon: Sparkles,
+    title: 'Smart Labels',
+    desc: 'Color-coded tags, due dates, priority levels. Filter and find anything instantly.',
+    color: 'from-amber-500 to-orange-400',
   },
 ]
+
+const stats = [
+  { value: '100%', label: 'Free to start' },
+  { value: 'Real-time', label: 'Live updates' },
+  { value: 'No setup', label: 'Instant workspace' },
+]
+
+// ── Sub-components ────────────────────────────────────────────────
+
+function FloatingOrbs() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none -z-5">
+      {/* Orb 1 — large blue */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-gradient-to-br from-blue-400/20 to-blue-600/5 blur-3xl animate-float-slow" />
+      {/* Orb 2 — medium purple */}
+      <div className="absolute top-1/3 -right-24 w-72 h-72 rounded-full bg-gradient-to-br from-violet-400/15 to-purple-600/5 blur-3xl animate-float-slower" />
+      {/* Orb 3 — small emerald */}
+      <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-gradient-to-br from-emerald-400/10 to-teal-600/5 blur-3xl animate-float" />
+      {/* Orb 4 — tiny accent */}
+      <div className="absolute top-1/2 left-2/3 w-32 h-32 rounded-full bg-gradient-to-br from-amber-300/10 to-orange-500/5 blur-2xl animate-float-slower" />
+    </div>
+  )
+}
+
+function GridBackground() {
+  return (
+    <div className="absolute inset-0 -z-10 opacity-[0.03] dark:opacity-[0.05]"
+      style={{
+        backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+        backgroundSize: '60px 60px',
+      }}
+    />
+  )
+}
+
+function FeatureCard({ icon: Icon, title, desc, color, index }) {
+  const [ref, isVisible] = useScrollReveal()
+  const glareRef = useRef(null)
+
+  const handleGlare = useCallback((e) => {
+    const el = glareRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 100
+    const y = ((e.clientY - rect.top) / rect.height) * 100
+    el.style.setProperty('--gx', `${x}%`)
+    el.style.setProperty('--gy', `${y}%`)
+    el.style.opacity = '1'
+  }, [])
+
+  const handleGlareLeave = useCallback(() => {
+    if (glareRef.current) glareRef.current.style.opacity = '0'
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}
+      style={{ transitionDelay: `${index * 120}ms` }}
+    >
+      <TiltCard maxTilt={6}>
+        <div
+          onMouseMove={handleGlare}
+          onMouseLeave={handleGlareLeave}
+          className="relative h-full rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 hover:border-white/20 hover:shadow-2xl hover:shadow-blue-500/5 transition-all duration-300 overflow-hidden"
+          style={{ transform: 'translateZ(20px)' }}
+        >
+          {/* Glare */}
+          <div
+            ref={glareRef}
+            className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255,255,255,0.08) 0%, transparent 60%)`,
+            }}
+          />
+          <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${color} p-0.5 mb-4`}>
+            <div className="w-full h-full rounded-[10px] bg-slate-900 flex items-center justify-center">
+              <Icon className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          <h3 className="text-base font-semibold text-white mb-1.5">{title}</h3>
+          <p className="text-sm text-slate-400 leading-relaxed">{desc}</p>
+        </div>
+      </TiltCard>
+    </div>
+  )
+}
+
+function StatBar() {
+  const [ref, isVisible] = useScrollReveal()
+
+  return (
+    <div
+      ref={ref}
+      className={`max-w-3xl mx-auto grid grid-cols-3 gap-8 py-10 border-y border-white/5 transition-all duration-700 ease-out ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}
+    >
+      {stats.map((s) => (
+        <div key={s.label} className="text-center">
+          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+            {s.value}
+          </div>
+          <div className="text-xs text-slate-500 mt-1">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Hero section with floating 3D shapes ──────────────────────────
+
+function Hero3DShapes() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none -z-5" aria-hidden="true">
+      {/* 3D-like floating geometric shapes using CSS */}
+      <div className="absolute top-20 left-[15%] w-16 h-16 border border-blue-400/20 rounded-lg rotate-12 animate-float-slow opacity-40" />
+      <div className="absolute top-40 right-[20%] w-12 h-12 border border-violet-400/20 rounded-full animate-float-slower opacity-30" />
+      <div className="absolute bottom-32 left-[25%] w-20 h-20 border border-emerald-400/10 rounded-full animate-float opacity-20" />
+      <div className="absolute top-1/3 right-[35%] w-8 h-8 border border-amber-400/20 rotate-45 animate-float-slow opacity-30" />
+      <div className="absolute bottom-48 right-[15%] w-14 h-14 border border-blue-400/15 rounded-xl rotate-[30deg] animate-float-slower opacity-25" />
+      <div className="absolute top-[60%] left-[10%] w-10 h-10 border border-purple-400/10 rounded-lg rotate-[60deg] animate-float opacity-20" />
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────
 
 export default function Landing() {
   const navigate = useNavigate()
@@ -38,82 +177,204 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-white">
-      {/* Nav */}
-      <nav className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
-            <CheckCircle className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-xl font-bold text-slate-900">Mini Jira</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSignIn}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            Sign In
-          </button>
-          <button
-            onClick={handleGetStarted}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-          >
-            Get Started
-          </button>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
+      {/* ── Hero Section ─────────────────────────────────────────────── */}
+      <section className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+        <GridBackground />
+        <FloatingOrbs />
+        <Hero3DShapes />
 
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full mb-6">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          Simple task management for teams
-        </div>
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 leading-tight max-w-3xl mx-auto">
-          Manage projects.{' '}
-          <span className="text-blue-600">Ship faster.</span>
-        </h1>
-        <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
-          Mini Jira helps small teams track tasks, collaborate on projects, and move work forward — without the complexity.
-        </p>
-        <div className="flex items-center justify-center gap-4 mt-8">
-          <button
-            onClick={handleGetStarted}
-            className="px-6 py-3 text-base font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg inline-flex items-center gap-2"
-          >
-            Get Started Free <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={handleSignIn}
-            className="px-6 py-3 text-base font-medium text-slate-700 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors shadow-sm"
-          >
-            Sign In
-          </button>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map((f) => (
-            <div
-              key={f.title}
-              className="bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-200 hover:shadow-md transition-all"
-            >
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center mb-4">
-                <f.icon className="w-5 h-5 text-blue-600" />
-              </div>
-              <h3 className="text-base font-semibold text-slate-900 mb-1">{f.title}</h3>
-              <p className="text-sm text-slate-500 leading-relaxed">{f.desc}</p>
+        {/* Navbar */}
+        <nav className="relative z-10 flex items-center justify-between px-4 sm:px-8 py-4 max-w-7xl mx-auto w-full">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <CheckCircle className="w-5 h-5 text-white" />
             </div>
-          ))}
+            <span className="text-lg font-bold text-white tracking-tight">Mini Jira</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSignIn}
+              className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={handleGetStarted}
+              className="group relative px-5 py-2 text-sm font-medium text-white rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/20"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-500 group-hover:from-blue-500 group-hover:to-blue-400 transition-all duration-300" />
+              <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%)',
+                }}
+              />
+              <span className="relative flex items-center gap-1.5">
+                Get Started <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </button>
+          </div>
+        </nav>
+
+        {/* Hero Content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 pb-20 text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-slate-300 mb-8 backdrop-blur-sm">
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            Simple project management for modern teams
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] tracking-tight max-w-4xl mx-auto">
+            <span className="text-white">Manage work.</span>{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
+              Ship faster.
+            </span>
+          </h1>
+
+          <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Mini Jira helps teams track tasks, collaborate in real-time, and ship projects — without the bloat.
+          </p>
+
+          {/* CTA */}
+          <div className="flex items-center justify-center gap-4 mt-10">
+            <button
+              onClick={handleGetStarted}
+              className="group relative px-8 py-3.5 text-base font-semibold text-white rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-blue-600 to-violet-600 group-hover:from-blue-500 group-hover:to-violet-500 transition-all duration-300" />
+              <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%)',
+                }}
+              />
+              <span className="relative flex items-center gap-2">
+                Get Started Free <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </button>
+            <button
+              onClick={handleSignIn}
+              className="px-8 py-3.5 text-base font-medium text-slate-300 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:text-white hover:border-white/20 transition-all duration-300"
+            >
+              Sign In
+            </button>
+          </div>
+
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+            <div className="w-5 h-8 rounded-full border border-white/10 flex items-start justify-center p-1">
+              <div className="w-1 h-2 rounded-full bg-blue-400/60 animate-scroll-dot" />
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-200 py-8 text-center">
-        <p className="text-sm text-slate-400">Mini Jira — Built for learning microservices</p>
+      {/* ── Features Section ─────────────────────────────────────────── */}
+      <section className="relative py-24 px-4 bg-slate-950">
+        <div className="max-w-6xl mx-auto">
+          {/* Section header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 mb-4">
+              <Zap className="w-3 h-3 text-blue-400" />
+              Everything you need
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white">
+              Built for{' '}
+            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+              real teams
+            </span>
+          </h2>
+          <p className="mt-4 text-slate-400 max-w-xl mx-auto">
+            No complicated setup. Just create a workspace, invite your team, and start shipping.
+          </p>
+        </div>
+
+          {/* Feature cards */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {features.map((f, i) => (
+              <FeatureCard key={f.title} {...f} index={i} />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div className="mt-20">
+            <StatBar />
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA Section ──────────────────────────────────────────────── */}
+      <section className="relative py-24 px-4 bg-slate-950">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="relative rounded-3xl border border-white/10 bg-gradient-to-br from-blue-600/10 via-violet-600/5 to-slate-900 p-10 sm:p-16 overflow-hidden">
+            <GridBackground />
+            <FloatingOrbs />
+
+            <div className="relative z-10">
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+                Start shipping today
+              </h2>
+              <p className="text-lg text-slate-400 max-w-lg mx-auto mb-8">
+                Free to start. No credit card required. Your workspace is ready in 30 seconds.
+              </p>
+              <button
+                onClick={handleGetStarted}
+                className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold text-white rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+              >
+                Create Free Workspace <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────────────── */}
+      <footer className="border-t border-white/5 py-10 px-4">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+              <CheckCircle className="w-3.5 h-3.5 text-white" />
+            </div>
+            Mini Jira
+          </div>
+          <p className="text-xs text-slate-600">
+            Built for learning microservices architecture
+          </p>
+        </div>
       </footer>
+
+      {/* ── Animations ───────────────────────────────────────────────── */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(3deg); }
+        }
+        @keyframes float-slow {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-12px) rotate(-2deg); }
+        }
+        @keyframes float-slower {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-8px) rotate(1deg); }
+        }
+        @keyframes scroll-dot {
+          0%, 100% { transform: translateY(0); opacity: 1; }
+          50% { transform: translateY(6px); opacity: 0.3; }
+        }
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
+        .animate-float-slower { animation: float-slower 10s ease-in-out infinite; }
+        .animate-scroll-dot { animation: scroll-dot 2s ease-in-out infinite; }
+
+        /* Tilt card base */
+        .tilt-card {
+          transform-style: preserve-3d;
+          will-change: transform;
+        }
+        .tilt-card > * {
+          transform: translateZ(20px);
+        }
+      `}</style>
     </div>
   )
 }
