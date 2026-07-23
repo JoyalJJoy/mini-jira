@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   getWorkspaces, updateWorkspace, deleteWorkspace,
-  getWorkspaceMembers, addWorkspaceMember, removeWorkspaceMember,
+  getWorkspaceMembers, addWorkspaceMember, removeWorkspaceMember, updateWorkspaceMemberRole,
   getUsers
 } from '../api'
 import { X, UserPlus, Trash2 } from 'lucide-react'
@@ -14,6 +14,7 @@ export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWo
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [memberEmail, setMemberEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('member')
 
   const load = async () => {
     try {
@@ -64,10 +65,10 @@ export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWo
     e.preventDefault()
     if (!memberEmail.trim()) return
     try {
-      await addWorkspaceMember(workspaceId, memberEmail)
+      await addWorkspaceMember(workspaceId, memberEmail, inviteRole)
       setMemberEmail('')
       load()
-      toast('Member added!')
+      toast('Member added')
     } catch (err) {
       toast(err.message, 'error')
     }
@@ -78,6 +79,16 @@ export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWo
       await removeWorkspaceMember(workspaceId, userId)
       load()
       toast('Member removed')
+    } catch (err) {
+      toast(err.message, 'error')
+    }
+  }
+
+  const handleRoleChange = async (userId, role) => {
+    try {
+      await updateWorkspaceMemberRole(workspaceId, userId, role)
+      load()
+      toast('Role updated')
     } catch (err) {
       toast(err.message, 'error')
     }
@@ -133,6 +144,11 @@ export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWo
               <input type="email" placeholder="Email to invite" required value={memberEmail}
                 onChange={(e) => setMemberEmail(e.target.value)}
                 className="flex-1 h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-3 text-sm dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-xs dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+                <option value="member">member</option>
+                <option value="admin">admin</option>
+              </select>
               <button type="submit"
                 className="inline-flex items-center gap-1 rounded-lg bg-blue-600 text-white px-3 py-1.5 text-sm font-medium hover:bg-blue-700 transition-colors">
                 <UserPlus className="w-4 h-4" /> Invite
@@ -151,7 +167,17 @@ export default function WorkspaceSettings({ workspaceId, onClose, onUpdate, onWo
                         <span className="text-sm text-slate-700 dark:text-slate-300 truncate">
                           {user?.display_name || m.user_id.slice(0, 8)}
                         </span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500">{m.role}</span>
+                        <select
+                          value={m.role}
+                          onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
+                          className={`text-xs rounded-md border px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                            m.role === 'admin'
+                              ? 'border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30'
+                              : 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-800'
+                          }`}>
+                          <option value="member">member</option>
+                          <option value="admin">admin</option>
+                        </select>
                       </div>
                       {m.role !== 'admin' && (
                         <button onClick={() => handleRemoveMember(m.user_id)}

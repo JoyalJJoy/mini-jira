@@ -94,11 +94,14 @@ export const deleteWorkspace = (wsId) =>
 export const getWorkspaceMembers = (wsId) =>
   request(`/workspaces/${wsId}/members`)
 
-export const addWorkspaceMember = (wsId, email) =>
-  request(`/workspaces/${wsId}/members`, { method: 'POST', body: JSON.stringify({ email, role: 'member' }) })
+export const addWorkspaceMember = (wsId, email, role = 'member') =>
+  request(`/workspaces/${wsId}/members`, { method: 'POST', body: JSON.stringify({ email, role }) })
 
 export const removeWorkspaceMember = (wsId, userId) =>
   request(`/workspaces/${wsId}/members/${userId}`, { method: 'DELETE' })
+
+export const updateWorkspaceMemberRole = (wsId, userId, role) =>
+  request(`/workspaces/${wsId}/members/${userId}`, { method: 'PATCH', body: JSON.stringify({ role }) })
 
 // Projects
 export const getProjects = (workspaceId, includeArchived = false) => {
