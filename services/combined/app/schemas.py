@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from app.models import TaskStatus, TaskPriority, IssueType
 
@@ -82,7 +82,12 @@ class TaskResponse(BaseModel):
 
 class SprintCreate(BaseModel):
     project_id: str
-    name: str
+    name: str = Field(min_length=1)
+    goal: str | None = None
+
+
+class SprintUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1)
     goal: str | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
