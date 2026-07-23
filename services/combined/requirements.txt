@@ -5,3 +5,4 @@ pyjwt[crypto]
 pwdlib[argon2]
 greenlet
 pydantic-settings
+httpx

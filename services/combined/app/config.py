@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     # Clerk auth
     clerk_jwks_url: str = ""
+    clerk_secret_key: str = ""
 
     model_config = {"env_file": ".env"}
 

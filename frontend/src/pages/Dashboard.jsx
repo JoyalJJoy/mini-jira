@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth, useUser } from '@clerk/clerk-react'
 import {
@@ -78,11 +78,14 @@ export default function Dashboard() {
 
   useEffect(() => { loadTasks() }, [loadTasks])
 
+  // Auto-select first project only on initial load (not when user clicks "All Tasks")
+  const initialLoad = useRef(true)
   useEffect(() => {
-    if (!activeProjectId && projects.length > 0) {
+    if (initialLoad.current && projects.length > 0) {
       setActiveProjectId(projects[0].id)
+      initialLoad.current = false
     }
-  }, [projects, activeProjectId])
+  }, [projects])
 
   useEffect(() => {
     loadMembers(activeProjectId)
