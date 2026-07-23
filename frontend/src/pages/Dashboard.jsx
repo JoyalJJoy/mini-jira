@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '@clerk/clerk-react'
+import { useAuth, useUser } from '@clerk/clerk-react'
 import {
   getTasks, createTask, deleteTask,
   getProjects, createProject, getMembers, addMember,
@@ -142,15 +142,26 @@ export default function Dashboard() {
   }, [activeProjectId, loadMembers, loadTags])
 
   // ── Real-time SSE ───────────────────────────────────────────────
+  const currentUserIdRef = useRef(null)
+  const { user } = useUser()
+  useEffect(() => {
+    if (user?.id) currentUserIdRef.current = user.id
+  }, [user])
+
   const handleRealtimeEvent = useCallback((eventType, data) => {
+    // Skip events triggered by the current user — state is already updated locally
+    if (data.actor_id && data.actor_id === currentUserIdRef.current) return
+
     if (eventType === 'task.created' || eventType === 'task.updated') {
       loadTasks()
     } else if (eventType === 'task.deleted') {
       setTasks((prev) => prev.filter((t) => t.id !== data.id))
     } else if (eventType === 'comment.created') {
       // Refresh comments for that task
-      if (expandedComments[data.task_id]) {
-        import('../api').then((mod) => mod.getComments(data.task_id).then(setCommentsForTask(data.task_id)))
+      if (data.task_id && expandedComments[data.task_id]) {
+        import('../api').then((mod) =>
+          mod.getComments(data.task_id).then(setCommentsForTask(data.task_id))
+        ).catch(() => {})
       }
     }
   }, [loadTasks, expandedComments])

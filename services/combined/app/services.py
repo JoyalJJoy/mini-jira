@@ -306,6 +306,7 @@ class TaskService:
             "title": task.title,
             "owner_id": task.owner_id,
             "project_id": task.project_id,
+            "actor_id": user_id,
         })
         return task
 
@@ -376,6 +377,7 @@ class TaskService:
             "title": task.title,
             "status": task.status,
             "project_id": task.project_id,
+            "actor_id": user_id,
         })
         return task
 
@@ -390,6 +392,7 @@ class TaskService:
         await event_bus.publish("task.deleted", {
             "id": task_id,
             "project_id": project_id,
+            "actor_id": user_id,
         })
         return True
 
@@ -575,6 +578,7 @@ class CommentService:
             "author_id": author_id,
             "content": comment.content,
             "project_id": task.project_id if task else None,
+            "actor_id": author_id,
         })
         return comment
 

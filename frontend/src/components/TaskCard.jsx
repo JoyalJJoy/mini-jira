@@ -3,6 +3,7 @@ import {
   updateTask, getComments, createComment,
   STATUS_CONFIG, PRIORITY_CONFIG, STATUS_ORDER,
 } from '../api'
+import { toast } from './Toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -38,7 +39,9 @@ export default function TaskCard({ task, onDelete, onUpdate, users }) {
       const c = await createComment(task.id, commentText)
       setComments((prev) => [...prev, c])
       setCommentText('')
-    } catch { /* ignore */ }
+    } catch (err) {
+      toast(err.message || 'Failed to post comment', 'error')
+    }
     setLoading(false)
   }
 
