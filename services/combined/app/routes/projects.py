@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import get_current_user
-from app.schemas import ProjectCreate, ProjectResponse, ProjectUpdate
+from app.schemas import ProjectCreate, ProjectResponse, ProjectUpdate, MemberInvite, ProjectMemberResponse
 from app.services import ProjectService
 
 router = APIRouter(prefix="/api/v1/projects", tags=["projects"])
@@ -52,6 +52,49 @@ async def update_project(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+@router.get("/{project_id}/members", response_model=list[ProjectMemberResponse])
+async def list_members(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    service = ProjectService(db)
+    members = await service.list_members(project_id, current_user)
+    return members
+
+
+@router.post("/{project_id}/members", response_model=ProjectMemberResponse)
+async def add_member(
+    project_id: str,
+    data: MemberInvite,
+    db: AsyncSession = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    service = ProjectService(db)
+    try:
+        member = await service.add_member(project_id, data.email, data.role, current_user)
+        return member
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{project_id}/members/{user_id}")
+async def remove_member(
+    project_id: str,
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: str = Depends(get_current_user),
+):
+    service = ProjectService(db)
+    try:
+        deleted = await service.remove_member(project_id, user_id, current_user)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Member not found")
+        return {"ok": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/{project_id}")

@@ -82,6 +82,23 @@ class ProjectResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ── Project Member ─────────────────────────────────────────────────
+
+class MemberInvite(BaseModel):
+    email: str
+    role: str = "member"
+
+
+class ProjectMemberResponse(BaseModel):
+    id: str
+    project_id: str
+    user_id: str
+    role: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ── Comment ────────────────────────────────────────────────────────
 
 class CommentCreate(BaseModel):

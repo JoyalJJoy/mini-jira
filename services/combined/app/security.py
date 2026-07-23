@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import jwt
+from jwt import PyJWKClient
 from pwdlib import PasswordHash
 from app.config import settings
 
@@ -25,4 +26,34 @@ def decode_token(token: str) -> dict | None:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload
     except jwt.InvalidTokenError:
+        return None
+
+
+# ── Clerk JWT verification ────────────────────────────────────────
+
+_jwks_client: PyJWKClient | None = None
+
+
+def _get_jwks_client() -> PyJWKClient | None:
+    global _jwks_client
+    if _jwks_client is None and settings.clerk_jwks_url:
+        _jwks_client = PyJWKClient(settings.clerk_jwks_url)
+    return _jwks_client
+
+
+def verify_clerk_token(token: str) -> dict | None:
+    """Verify a Clerk-issued session JWT and return its payload."""
+    client = _get_jwks_client()
+    if not client:
+        return None
+    try:
+        signing_key = client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            options={"verify_exp": True},
+        )
+        return payload
+    except Exception:
         return None

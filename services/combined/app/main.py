@@ -8,7 +8,7 @@ from app.db import engine
 from app.routes import auth, users, tasks, projects, comments
 
 # Ensure all models are imported so create_all discovers them
-from app.models import User, Task, Project, Comment  # noqa: F401
+from app.models import User, Task, Project, ProjectMember, Comment  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 

@@ -1,7 +1,7 @@
 fastapi[standard]
 sqlalchemy[asyncio]
 aiosqlite
-pyjwt
+pyjwt[crypto]
 pwdlib[argon2]
 greenlet
 pydantic-settings

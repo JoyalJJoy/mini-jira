@@ -73,6 +73,18 @@ class Project(Base):
     )
 
 
+# ── Project Member ────────────────────────────────────────────────
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    user_id: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String(20), default="member")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 # ── Comment ───────────────────────────────────────────────────────
 
 class Comment(Base):

@@ -1,9 +1,12 @@
 // In dev (Vite proxy) this resolves to /api/v1 → localhost:8000
-// In production (Vercel) set VITE_API_URL to your gateway URL
+// In production set VITE_API_URL to your Render backend URL
 const API = import.meta.env.VITE_API_URL || '/api/v1'
 
-function getToken() {
-  return localStorage.getItem('access_token')
+// Token provider — defaults to localStorage, overridable for Clerk etc.
+let _getToken = () => localStorage.getItem('access_token')
+
+export function setTokenProvider(fn) {
+  _getToken = fn
 }
 
 export function setToken(token) {
@@ -15,8 +18,7 @@ export function clearToken() {
 }
 
 async function request(path, options = {}) {
-  const token = getToken()
-  // Only set Content-Type when there's a body (avoids unnecessary CORS preflight on GET/DELETE)
+  const token = await _getToken()
   const headers = { ...options.headers }
   if (options.body) headers['Content-Type'] = 'application/json'
   if (token) headers['Authorization'] = `Bearer ${token}`
@@ -28,7 +30,6 @@ async function request(path, options = {}) {
     throw new Error(`Network error: ${err.message}`)
   }
 
-  // Try to read the body as text first
   let text
   try {
     text = await res.text()
@@ -36,12 +37,10 @@ async function request(path, options = {}) {
     throw new Error(`Failed to read response body (status ${res.status})`)
   }
 
-  // If body is empty, throw a clear error
   if (!text) {
     throw new Error(`Empty response from server (status ${res.status})`)
   }
 
-  // Parse JSON
   let data
   try {
     data = JSON.parse(text)
@@ -61,6 +60,8 @@ export const signup = (email, password, display_name) =>
 
 export const login = (email, password) =>
   request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+
+export const getMe = () => request('/auth/me')
 
 // Users (for assignee picker)
 export const getUsers = () => request('/users/')
@@ -86,6 +87,16 @@ export const createProject = (name, description) =>
 
 export const deleteProject = (projectId) =>
   request(`/projects/${projectId}`, { method: 'DELETE' })
+
+// Project Members
+export const getMembers = (projectId) =>
+  request(`/projects/${projectId}/members`)
+
+export const addMember = (projectId, email) =>
+  request(`/projects/${projectId}/members`, { method: 'POST', body: JSON.stringify({ email }) })
+
+export const removeMember = (projectId, userId) =>
+  request(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' })
 
 // Comments
 export const getComments = (taskId) => request(`/tasks/${taskId}/comments/`)

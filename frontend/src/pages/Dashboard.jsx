@@ -1,28 +1,24 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import {
   getTasks, createTask, deleteTask,
-  getProjects, createProject,
+  getProjects, createProject, getMembers, addMember,
   getUsers,
-  clearToken, PRIORITY_CONFIG,
+  PRIORITY_CONFIG,
 } from '../api'
 import Navbar from '../components/Navbar'
 import TaskCard from '../components/TaskCard'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { UserPlus, X } from 'lucide-react'
 
 const FILTERS = ['all', 'todo', 'in_progress', 'done']
 
 export default function Dashboard() {
+  const { isLoaded, isSignedIn } = useAuth()
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
   const [users, setUsers] = useState([])
+  const [members, setMembers] = useState([])
   const [activeProjectId, setActiveProjectId] = useState(null)
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState('p2')
@@ -35,17 +31,22 @@ export default function Dashboard() {
   const [projectName, setProjectName] = useState('')
   const [projectDesc, setProjectDesc] = useState('')
 
+  // Add-member form
+  const [showAddMember, setShowAddMember] = useState(false)
+  const [memberEmail, setMemberEmail] = useState('')
+
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) navigate('/')
+  }, [isLoaded, isSignedIn, navigate])
 
   const loadTasks = useCallback(async () => {
     try {
       const data = await getTasks(activeProjectId)
       setTasks(data)
-    } catch {
-      clearToken()
-      navigate('/login')
-    }
-  }, [activeProjectId, navigate])
+    } catch { /* handled by caller */ }
+  }, [activeProjectId])
 
   const loadProjects = useCallback(async () => {
     try {
@@ -61,12 +62,19 @@ export default function Dashboard() {
     } catch { /* not critical */ }
   }, [])
 
+  const loadMembers = useCallback(async (projectId) => {
+    if (!projectId) return
+    try {
+      const data = await getMembers(projectId)
+      setMembers(data)
+    } catch { /* not critical */ }
+  }, [])
+
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    if (!token) return navigate('/login')
+    if (!isLoaded || !isSignedIn) return
     loadProjects()
     loadUsers()
-  }, [loadProjects, loadUsers, navigate])
+  }, [isLoaded, isSignedIn, loadProjects, loadUsers])
 
   useEffect(() => { loadTasks() }, [loadTasks])
 
@@ -75,6 +83,10 @@ export default function Dashboard() {
       setActiveProjectId(projects[0].id)
     }
   }, [projects, activeProjectId])
+
+  useEffect(() => {
+    loadMembers(activeProjectId)
+  }, [activeProjectId, loadMembers])
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -117,13 +129,28 @@ export default function Dashboard() {
     }
   }
 
+  const handleAddMember = async (e) => {
+    e.preventDefault()
+    if (!memberEmail.trim() || !activeProjectId) return
+    try {
+      await addMember(activeProjectId, memberEmail)
+      setMemberEmail('')
+      setShowAddMember(false)
+      loadMembers(activeProjectId)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const activeProject = projects.find((p) => p.id === activeProjectId)
   const filteredTasks = filter === 'all'
     ? tasks
     : tasks.filter((t) => t.status === filter)
 
+  if (!isLoaded) return null
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-50">
       <Navbar />
       <main className="mx-auto max-w-2xl px-4 py-6">
         {/* Project bar */}
@@ -134,8 +161,8 @@ export default function Dashboard() {
                 onClick={() => setActiveProjectId(null)}
                 className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                   !activeProjectId
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 All Tasks
@@ -146,8 +173,8 @@ export default function Dashboard() {
                   onClick={() => setActiveProjectId(p.id)}
                   className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                     activeProjectId === p.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   {p.name}
@@ -156,53 +183,95 @@ export default function Dashboard() {
             </div>
           )}
           {!showCreateProject ? (
-            <Button variant="outline" size="xs" onClick={() => setShowCreateProject(true)}>
+            <button
+              onClick={() => setShowCreateProject(true)}
+              className="rounded-md px-3 py-1.5 text-xs font-medium bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
+            >
               + Project
-            </Button>
+            </button>
           ) : (
             <form onSubmit={handleCreateProject} className="flex items-center gap-1.5">
-              <Input type="text" placeholder="Project name" required value={projectName}
-                onChange={(e) => setProjectName(e.target.value)} className="h-7 w-36 text-xs" />
-              <Input type="text" placeholder="Description (optional)" value={projectDesc}
-                onChange={(e) => setProjectDesc(e.target.value)} className="h-7 w-40 text-xs" />
-              <Button type="submit" size="xs">Create</Button>
-              <Button type="button" variant="ghost" size="xs"
-                onClick={() => setShowCreateProject(false)}>✕</Button>
+              <input type="text" placeholder="Project name" required value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="h-7 w-36 rounded-md border border-slate-200 px-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              <input type="text" placeholder="Description" value={projectDesc}
+                onChange={(e) => setProjectDesc(e.target.value)}
+                className="h-7 w-40 rounded-md border border-slate-200 px-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              <button type="submit"
+                className="h-7 rounded-md bg-blue-600 text-white px-2.5 text-xs font-medium hover:bg-blue-700 transition-colors">Create</button>
+              <button type="button" onClick={() => setShowCreateProject(false)}
+                className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
             </form>
           )}
         </div>
 
         {/* Create task form */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>{activeProject ? `New Task in ${activeProject.name}` : 'New Task'}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <div className="mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </div>
+        <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <h2 className="text-sm font-semibold text-slate-900 mb-3">
+            {activeProject ? `New Task in ${activeProject.name}` : 'New Task'}
+          </h2>
+          {error && (
+            <div className="mb-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleCreate} className="flex flex-wrap gap-2">
+            <input type="text" placeholder="What needs to be done?" required value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="min-w-0 flex-1 h-9 rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+            <select value={priority} onChange={(e) => setPriority(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              {Object.entries(PRIORITY_CONFIG).map(([k, c]) => (
+                <option key={k} value={k}>{c.label}</option>
+              ))}
+            </select>
+            <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20">
+              <option value="">Assign to...</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.display_name || u.email}</option>
+              ))}
+            </select>
+            <button type="submit"
+              className="h-9 rounded-lg bg-blue-600 text-white px-4 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">Add</button>
+          </form>
+        </div>
+
+        {/* Members bar for active project */}
+        {activeProject && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium">Members:</span>
+            <div className="flex flex-wrap gap-1">
+              {members.map((m) => (
+                <span key={m.id} className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                  {users.find((u) => u.id === m.user_id)?.display_name || m.user_id.slice(0, 8)}
+                </span>
+              ))}
+            </div>
+            {!showAddMember ? (
+              <button
+                onClick={() => setShowAddMember(true)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                <UserPlus className="w-3 h-3" /> Invite
+              </button>
+            ) : (
+              <form onSubmit={handleAddMember} className="flex items-center gap-1">
+                <input type="email" placeholder="Email" required value={memberEmail}
+                  onChange={(e) => setMemberEmail(e.target.value)}
+                  className="h-7 w-40 rounded-md border border-slate-200 px-2 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                <button type="submit"
+                  className="h-7 rounded-md bg-blue-600 text-white px-2 text-xs font-medium hover:bg-blue-700 transition-colors">Send</button>
+                <button type="button" onClick={() => setShowAddMember(false)}
+                  className="h-7 w-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                  <X className="w-3 h-3" />
+                </button>
+              </form>
             )}
-            <form onSubmit={handleCreate} className="flex flex-wrap gap-2">
-              <Input type="text" placeholder="What needs to be done?" required value={title}
-                onChange={(e) => setTitle(e.target.value)} className="min-w-0 flex-1" />
-              <select value={priority} onChange={(e) => setPriority(e.target.value)}
-                className="h-8 rounded-lg border border-input bg-transparent px-2 text-xs font-medium">
-                {Object.entries(PRIORITY_CONFIG).map(([k, c]) => (
-                  <option key={k} value={k}>{c.label}</option>
-                ))}
-              </select>
-              <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}
-                className="h-8 rounded-lg border border-input bg-transparent px-2 text-xs font-medium">
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>{u.display_name || u.email}</option>
-                ))}
-              </select>
-              <Button type="submit">Add</Button>
-            </form>
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
         {/* Status filter tabs */}
         <div className="mb-4 flex gap-1">
@@ -210,8 +279,8 @@ export default function Dashboard() {
             <button key={f} onClick={() => setFilter(f)}
               className={`rounded-md px-3 py-1 text-xs font-medium capitalize transition-colors ${
                 filter === f
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
               }`}>
               {f === 'in_progress' ? 'In Progress' : f}
               {f !== 'all' && (
@@ -226,7 +295,7 @@ export default function Dashboard() {
         {/* Task list */}
         <div className="flex flex-col gap-2">
           {filteredTasks.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">
+            <p className="py-12 text-center text-sm text-slate-400">
               {tasks.length === 0 ? 'No tasks yet. Create one above!' : `No ${filter === 'all' ? '' : filter + ' '}tasks.`}
             </p>
           ) : (
