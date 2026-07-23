@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useRef, useCallback, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { clearToken } from '../api'
 import {
@@ -8,7 +8,6 @@ import {
 import TiltCard from '../components/TiltCard'
 import useScrollReveal from '../hooks/useScrollReveal'
 
-// Lazy-load the 3D scene so it doesn't block initial render
 const Hero3DScene = lazy(() => import('../components/Hero3DScene'))
 
 const features = [
@@ -133,35 +132,10 @@ function StatBar() {
   )
 }
 
-// ── 3D Scene fallback ─────────────────────────────────────────────
-
-function SceneFallback() {
-  return (
-    <div className="absolute inset-0 -z-5 bg-gradient-to-b from-slate-950/80 via-slate-900/50 to-slate-950/80" />
-  )
-}
-
 // ── Main component ────────────────────────────────────────────────
 
 export default function Landing() {
   const navigate = useNavigate()
-  const mouse = useRef({ x: 0, y: 0 })
-  const heroRef = useRef(null)
-
-  // Track mouse position relative to the hero section
-  useEffect(() => {
-    const hero = heroRef.current
-    if (!hero) return
-    const handleMouse = (e) => {
-      const rect = hero.getBoundingClientRect()
-      mouse.current = {
-        x: ((e.clientX - rect.left) / rect.width - 0.5) * 2,
-        y: ((e.clientY - rect.top) / rect.height - 0.5) * 2,
-      }
-    }
-    window.addEventListener('mousemove', handleMouse, { passive: true })
-    return () => window.removeEventListener('mousemove', handleMouse)
-  }, [])
 
   const handleGetStarted = () => {
     clearToken()
@@ -175,15 +149,13 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-x-hidden">
       {/* ── Hero Section ─────────────────────────────────────────────── */}
-      <section
-        ref={heroRef}
-        className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
+      <section className="relative min-h-screen flex flex-col bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
       >
         <GridBackground />
 
         {/* Real 3D scene with Three.js */}
-        <Suspense fallback={<SceneFallback />}>
-          <Hero3DScene mouse={mouse} />
+        <Suspense fallback={<div className="absolute inset-0 -z-5 bg-gradient-to-b from-slate-950/80 via-slate-900/40 to-slate-950/80" />}>
+          <Hero3DScene />
         </Suspense>
 
         {/* Gradient overlay at bottom of hero for smooth transition */}
