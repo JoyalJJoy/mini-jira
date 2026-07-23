@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import get_current_user
@@ -21,13 +21,33 @@ async def create_task(
 @router.get("/", response_model=list[TaskResponse])
 async def list_tasks(
     project_id: str | None = None,
+    search_q: str | None = Query(None, description="Global search across title and description"),
+    status: str | None = None,
+    assignee_id: str | None = None,
+    priority: str | None = None,
+    tag_ids: str | None = Query(None, description="Comma-separated tag IDs"),
+    sprint_id: str | None = None,
+    due_date_from: str | None = None,
+    due_date_to: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: str = Depends(get_current_user),
 ):
     service = TaskService(db)
+    tag_ids_list = tag_ids.split(",") if tag_ids else None
     if project_id:
         return await service.list_by_project(project_id, current_user)
-    return await service.list_by_user(current_user)
+    return await service.list_by_user(
+        current_user,
+        search_q=search_q,
+        status=status,
+        assignee_id=assignee_id,
+        priority=priority,
+        tag_ids=tag_ids_list,
+        sprint_id=sprint_id,
+        due_date_from=due_date_from,
+        due_date_to=due_date_to,
+        project_id=project_id,
+    )
 
 
 @router.get("/{task_id}", response_model=TaskResponse)

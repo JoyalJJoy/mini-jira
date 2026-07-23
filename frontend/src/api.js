@@ -67,8 +67,20 @@ export const getMe = () => request('/auth/me')
 export const getUsers = () => request('/users/')
 
 // Tasks
-export const getTasks = (projectId) =>
-  request(`/tasks/${projectId ? `?project_id=${projectId}` : ''}`)
+export const getTasks = (projectId, filters = {}) => {
+  const params = new URLSearchParams()
+  if (projectId) params.set('project_id', projectId)
+  if (filters.search_q) params.set('search_q', filters.search_q)
+  if (filters.status) params.set('status', filters.status)
+  if (filters.assignee_id) params.set('assignee_id', filters.assignee_id)
+  if (filters.priority) params.set('priority', filters.priority)
+  if (filters.tag_ids && filters.tag_ids.length > 0) params.set('tag_ids', filters.tag_ids.join(','))
+  if (filters.sprint_id) params.set('sprint_id', filters.sprint_id)
+  if (filters.due_date_from) params.set('due_date_from', filters.due_date_from)
+  if (filters.due_date_to) params.set('due_date_to', filters.due_date_to)
+  const qs = params.toString()
+  return request(`/tasks/${qs ? `?${qs}` : ''}`)
+}
 
 export const createTask = (title, description, priority, projectId, assigneeId, dueDate, tagIds, issueType) =>
   request('/tasks/', { method: 'POST', body: JSON.stringify({ title, description, priority, project_id: projectId, assignee_id: assigneeId, due_date: dueDate || null, tag_ids: tagIds || [], issue_type: issueType }) })
@@ -259,3 +271,18 @@ export const ISSUE_TYPE_CONFIG = {
 export const ISSUE_TYPE_ORDER = ['epic', 'story', 'task', 'bug', 'subtask']
 
 export const STATUS_ORDER = ['todo', 'in_progress', 'done']
+
+// Saved filters
+export const getSavedFilters = (workspaceId, projectId) => {
+  const params = new URLSearchParams()
+  if (workspaceId) params.set('workspace_id', workspaceId)
+  if (projectId) params.set('project_id', projectId)
+  const qs = params.toString()
+  return request(`/filters/${qs ? `?${qs}` : ''}`)
+}
+export const createSavedFilter = (name, criteria, workspaceId, projectId) =>
+  request('/filters/', { method: 'POST', body: JSON.stringify({ name, criteria, workspace_id: workspaceId, project_id: projectId }) })
+export const updateSavedFilter = (filterId, data) =>
+  request(`/filters/${filterId}`, { method: 'PATCH', body: JSON.stringify(data) })
+export const deleteSavedFilter = (filterId) =>
+  request(`/filters/${filterId}`, { method: 'DELETE' })

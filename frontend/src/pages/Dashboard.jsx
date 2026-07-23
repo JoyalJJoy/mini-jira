@@ -6,9 +6,11 @@ import {
   getProjects, createProject, updateProject, getMembers, addMember,
   getUsers, getTags, createTag,
   getWorkspaces, createWorkspace,
+  getSprints, getSavedFilters, createSavedFilter, deleteSavedFilter,
   PRIORITY_CONFIG, ISSUE_TYPE_CONFIG, ISSUE_TYPE_ORDER,
 } from '../api'
 import Navbar from '../components/Navbar'
+import FilterPanel from '../components/FilterPanel'
 import TaskCard from '../components/TaskCard'
 import KanbanBoard from '../components/KanbanBoard'
 import SprintManager from '../components/SprintManager'
@@ -70,6 +72,22 @@ export default function Dashboard() {
   // Sprint panel
   const [showSprints, setShowSprints] = useState(false)
 
+  // Search & Filters
+  const [filters, setFilters] = useState({
+    search_q: '',
+    status: '',
+    assignee_id: '',
+    priority: '',
+    tag_ids: [],
+    sprint_id: '',
+    due_date_from: '',
+    due_date_to: '',
+    issue_type: '',
+  })
+  const [sprints, setSprints] = useState([])
+  const [savedFilters, setSavedFilters] = useState([])
+  const [showFilters, setShowFilters] = useState(false)
+
   // Create-tag form
   const [showCreateTag, setShowCreateTag] = useState(false)
   const [tagName, setTagName] = useState('')
@@ -87,10 +105,17 @@ export default function Dashboard() {
   // ── Data loaders ────────────────────────────────────────────────
   const loadTasks = useCallback(async () => {
     try {
-      const data = await getTasks(activeProjectId)
+      // Build filter params — include activeProjectId, but skip empty fields
+      const activeFilters = {}
+      for (const [k, v] of Object.entries(filters)) {
+        if (v !== null && v !== '' && !(Array.isArray(v) && v.length === 0)) {
+          activeFilters[k] = v
+        }
+      }
+      const data = await getTasks(activeProjectId, activeFilters)
       setTasks(data)
     } catch { /* */ }
-  }, [activeProjectId])
+  }, [activeProjectId, filters])
 
   const loadWorkspaces = useCallback(async () => {
     try {
@@ -134,6 +159,15 @@ export default function Dashboard() {
     try { setTags(await getTags(pid)) } catch { /* */ }
   }, [])
 
+  const loadSprints = useCallback(async (pid) => {
+    if (!pid) { setSprints([]); return }
+    try { setSprints(await getSprints(pid)) } catch { /* */ }
+  }, [])
+
+  const loadSavedFilters = useCallback(async () => {
+    try { setSavedFilters(await getSavedFilters(activeWorkspaceId, activeProjectId)) } catch { /* */ }
+  }, [activeWorkspaceId, activeProjectId])
+
   // ── Initial loads ───────────────────────────────────────────────
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
@@ -154,7 +188,10 @@ export default function Dashboard() {
   useEffect(() => {
     loadMembers(activeProjectId)
     loadTags(activeProjectId)
-  }, [activeProjectId, loadMembers, loadTags])
+    loadSprints(activeProjectId)
+  }, [activeProjectId, loadMembers, loadTags, loadSprints])
+
+  useEffect(() => { loadSavedFilters() }, [loadSavedFilters])
 
   // ── Real-time SSE ───────────────────────────────────────────────
   const currentUserIdRef = useRef(null)
@@ -302,6 +339,52 @@ export default function Dashboard() {
       loadTags(activeProjectId)
       toast('Tag created!')
     } catch (err) { setError(err.message) }
+  }
+
+  // ── Filter handlers ────────────────────────────────────────────
+  const handleFilterChange = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleClearFilters = () => {
+    setFilters({
+      search_q: '',
+      status: '',
+      assignee_id: '',
+      priority: '',
+      tag_ids: [],
+      sprint_id: '',
+      due_date_from: '',
+      due_date_to: '',
+      issue_type: '',
+    })
+  }
+
+  const handleSaveFilter = async (name, criteria) => {
+    const sf = await createSavedFilter(name, criteria, activeWorkspaceId, activeProjectId)
+    setSavedFilters((prev) => [sf, ...prev])
+  }
+
+  const handleLoadFilter = (savedFilter) => {
+    if (savedFilter?.criteria) {
+      setFilters({
+        search_q: '',
+        status: savedFilter.criteria.status || '',
+        assignee_id: savedFilter.criteria.assignee_id || '',
+        priority: savedFilter.criteria.priority || '',
+        tag_ids: savedFilter.criteria.tag_ids || [],
+        sprint_id: savedFilter.criteria.sprint_id || '',
+        due_date_from: savedFilter.criteria.due_date_from || '',
+        due_date_to: savedFilter.criteria.due_date_to || '',
+        issue_type: savedFilter.criteria.issue_type || '',
+      })
+      toast('Filter applied')
+    }
+  }
+
+  const handleDeleteFilter = async (filterId) => {
+    await deleteSavedFilter(filterId)
+    setSavedFilters((prev) => prev.filter((f) => f.id !== filterId))
   }
 
   // ── Comment toggle for kanban ───────────────────────────────────
@@ -652,6 +735,22 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+        {/* Search & Filters */}
+        <div className="mb-4">
+          <FilterPanel
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            onClearFilters={handleClearFilters}
+            users={users}
+            tags={tags}
+            sprints={sprints}
+            savedFilters={savedFilters}
+            onSaveFilter={handleSaveFilter}
+            onLoadFilter={handleLoadFilter}
+            onDeleteFilter={handleDeleteFilter}
+          />
+        </div>
 
         {/* Status filter tabs + sprint toggle */}
         <div className="mb-4 flex items-center gap-2">

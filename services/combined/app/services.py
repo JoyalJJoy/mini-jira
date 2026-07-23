@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, delete
+from sqlalchemy import select, or_, and_, delete
 from app.models import User, Task, TaskTag, Project, ProjectMember, Comment, Tag, Workspace, WorkspaceMember, Activity
 from app.schemas import UserCreate, TaskCreate, TaskUpdate, ProjectCreate, ProjectUpdate, CommentCreate, CommentUpdate, TagCreate, WorkspaceCreate, WorkspaceUpdate, WorkspaceMemberUpdate
 from app.security import hash_password, verify_password, create_access_token
@@ -330,19 +330,69 @@ class TaskService:
                 return task
         return None
 
-    async def list_by_user(self, user_id: str) -> list[Task]:
+    async def list_by_user(
+        self, user_id: str,
+        search_q: str | None = None,
+        status: str | None = None,
+        assignee_id: str | None = None,
+        priority: str | None = None,
+        tag_ids: list[str] | None = None,
+        sprint_id: str | None = None,
+        due_date_from: str | None = None,
+        due_date_to: str | None = None,
+        project_id: str | None = None,
+    ) -> list[Task]:
         project_ids = await _get_project_ids_for_user(self.db, user_id)
+        conditions = []
         if project_ids:
-            result = await self.db.execute(
-                select(Task)
-                .where(or_(Task.owner_id == user_id, Task.project_id.in_(project_ids)))
-                .order_by(Task.created_at.desc())
-            )
+            conditions.append(or_(Task.owner_id == user_id, Task.project_id.in_(project_ids)))
         else:
-            result = await self.db.execute(
-                select(Task).where(Task.owner_id == user_id).order_by(Task.created_at.desc())
+            conditions.append(Task.owner_id == user_id)
+
+        if search_q:
+            conditions.append(
+                or_(
+                    Task.title.ilike(f"%{search_q}%"),
+                    Task.description.ilike(f"%{search_q}%"),
+                )
             )
-        return result.scalars().all()
+        if status:
+            conditions.append(Task.status == status)
+        if assignee_id:
+            conditions.append(Task.assignee_id == assignee_id)
+        if priority:
+            conditions.append(Task.priority == priority)
+        if sprint_id:
+            if sprint_id == "none":
+                conditions.append(Task.sprint_id.is_(None))
+            else:
+                conditions.append(Task.sprint_id == sprint_id)
+        if due_date_from:
+            conditions.append(Task.due_date >= due_date_from)
+        if due_date_to:
+            conditions.append(Task.due_date <= due_date_to)
+        if project_id:
+            conditions.append(Task.project_id == project_id)
+
+        query = select(Task).where(and_(*conditions)).order_by(Task.created_at.desc())
+        result = await self.db.execute(query)
+        tasks = result.scalars().all()
+
+        # If filtering by tag_ids, filter in Python (SQLite array mismatch)
+        if tag_ids:
+            tag_set = set(tag_ids)
+            from app.models import TaskTag
+            filtered = []
+            for t in tasks:
+                tag_result = await self.db.execute(
+                    select(TaskTag.tag_id).where(TaskTag.task_id == t.id)
+                )
+                task_tag_ids = {row[0] for row in tag_result.fetchall()}
+                if tag_set.intersection(task_tag_ids):
+                    filtered.append(t)
+            return filtered
+
+        return tasks
 
     async def list_by_project(self, project_id: str, user_id: str) -> list[Task]:
         if not await _is_project_member(self.db, project_id, user_id):

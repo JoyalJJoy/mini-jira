@@ -8,10 +8,10 @@ from sqlalchemy import text
 from app.config import settings
 from app.models import Base
 from app.db import engine
-from app.routes import auth, users, tasks, projects, comments, tags, events, workspaces, boards, task_extras, sprints
+from app.routes import auth, users, tasks, projects, comments, tags, events, workspaces, boards, task_extras, sprints, saved_filters
 
 # Ensure all models are imported so create_all discovers them
-from app.models import User, Task, Project, ProjectMember, Workspace, WorkspaceMember, Comment, Tag, TaskTag, Board, Column, ChecklistItem, Attachment, Activity, Sprint, IssueType  # noqa: F401
+from app.models import User, Task, Project, ProjectMember, Workspace, WorkspaceMember, Comment, Tag, TaskTag, Board, Column, ChecklistItem, Attachment, Activity, Sprint, IssueType, SavedFilter  # noqa: F401
 
 logging.basicConfig(level=logging.INFO)
 
@@ -98,6 +98,7 @@ app.include_router(workspaces.router)
 app.include_router(boards.router)
 app.include_router(task_extras.router)
 app.include_router(sprints.router)
+app.include_router(saved_filters.router)
 
 
 @app.get("/health")

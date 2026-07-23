@@ -134,6 +134,25 @@ class Sprint(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+# ── Saved Filter ───────────────────────────────────────────────────
+
+class SavedFilter(Base):
+    __tablename__ = "saved_filters"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    owner_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    workspace_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    project_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    criteria: Mapped[str] = mapped_column(Text, nullable=False)  # JSON blob of filter params
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+
 # ── Workspace ─────────────────────────────────────────────────────
 
 class Workspace(Base):

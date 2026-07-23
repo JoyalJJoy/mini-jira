@@ -339,3 +339,30 @@ class CommentResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Saved Filter ───────────────────────────────────────────────────
+
+class SavedFilterCreate(BaseModel):
+    name: str
+    criteria: dict  # JSON object of filter params
+    workspace_id: str | None = None
+    project_id: str | None = None
+
+
+class SavedFilterUpdate(BaseModel):
+    name: str | None = None
+    criteria: dict | None = None
+
+
+class SavedFilterResponse(BaseModel):
+    id: str
+    name: str
+    owner_id: str
+    workspace_id: str | None = None
+    project_id: str | None = None
+    criteria: dict
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
