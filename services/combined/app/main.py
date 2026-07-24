@@ -145,3 +145,51 @@ app.include_router(dashboard.router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Debug endpoint — check user data in DB ─────────────────────────
+@app.get("/debug/user/{user_id}")
+async def debug_user(user_id: str):
+    """Check what data exists for a given user in the database."""
+    from app.models import User, Workspace, WorkspaceMember, Project, ProjectMember
+    from sqlalchemy import select, func
+
+    results = {}
+
+    async with engine.connect() as conn:
+        # Check user
+        u = await conn.execute(select(User).where(User.id == user_id))
+        u_row = u.mappings().first()
+        results["user"] = dict(u_row) if u_row else None
+
+        # Check workspaces
+        ws_ids = await conn.execute(
+            select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user_id)
+        )
+        ws_ids_list = [r[0] for r in ws_ids.fetchall()]
+        results["workspace_ids"] = ws_ids_list
+
+        if ws_ids_list:
+            ws = await conn.execute(
+                select(Workspace).where(Workspace.id.in_(ws_ids_list))
+            )
+            results["workspaces"] = [dict(r) for r in ws.mappings().all()]
+        else:
+            results["workspaces"] = []
+
+        # Check projects
+        p_ids = await conn.execute(
+            select(ProjectMember.project_id).where(ProjectMember.user_id == user_id)
+        )
+        p_ids_list = [r[0] for r in p_ids.fetchall()]
+        results["project_ids"] = p_ids_list
+
+        if p_ids_list:
+            projs = await conn.execute(
+                select(Project).where(Project.id.in_(p_ids_list))
+            )
+            results["projects"] = [dict(r) for r in projs.mappings().all()]
+        else:
+            results["projects"] = []
+
+    return results

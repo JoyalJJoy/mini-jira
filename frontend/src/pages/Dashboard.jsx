@@ -122,6 +122,7 @@ export default function Dashboard() {
   const loadWorkspaces = useCallback(async () => {
     try {
       const data = await getWorkspaces()
+      console.log('Workspaces loaded:', data.length)
       setWorkspaces(data)
       // Auto-select workspace if user has one and none selected
       if (data.length > 0) {
@@ -132,7 +133,9 @@ export default function Dashboard() {
           localStorage.setItem('activeWorkspaceId', target)
         }
       }
-    } catch { /* */ }
+    } catch (err) {
+      console.error('Failed to load workspaces:', err)
+    }
   }, [activeWorkspaceId])
 
   // Track workspace changes to reset project auto-select
@@ -144,7 +147,9 @@ export default function Dashboard() {
   }, [activeWorkspaceId])
 
   const loadProjects = useCallback(async () => {
-    try { setProjects(await getProjects(activeWorkspaceId, true)) } catch { /* */ }
+    try { setProjects(await getProjects(activeWorkspaceId, true)) } catch (err) {
+      console.error('Failed to load projects:', err)
+    }
   }, [activeWorkspaceId])
 
   const loadUsers = useCallback(async () => {
