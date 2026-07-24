@@ -7,8 +7,15 @@ from app.schemas import (
     WorkspaceMemberResponse, WorkspaceMemberInvite, WorkspaceMemberUpdate,
 )
 from app.services import WorkspaceService
+from app.redis_client import cache_get, cache_set, cache_delete
 
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
+
+CACHE_TTL = 60
+
+
+def _ws_cache_key(user_id: str) -> str:
+    return f"ws:list:{user_id}"
 
 
 @router.post("/", response_model=WorkspaceResponse)
@@ -18,7 +25,9 @@ async def create_workspace(
     current_user: str = Depends(get_current_user),
 ):
     service = WorkspaceService(db)
-    return await service.create(data, current_user)
+    result = await service.create(data, current_user)
+    await cache_delete(_ws_cache_key(current_user))
+    return result
 
 
 @router.get("/", response_model=list[WorkspaceResponse])
@@ -26,8 +35,29 @@ async def list_workspaces(
     db: AsyncSession = Depends(get_db),
     current_user: str = Depends(get_current_user),
 ):
+    # Try cache
+    cached = await cache_get(_ws_cache_key(current_user))
+    if cached is not None:
+        return cached
+
     service = WorkspaceService(db)
-    return await service.list_by_user(current_user)
+    workspaces = await service.list_by_user(current_user)
+
+    # Store in cache (60s TTL)
+    ws_list = [
+        {
+            "id": w.id,
+            "name": w.name,
+            "description": w.description,
+            "owner_id": w.owner_id,
+            "created_at": str(w.created_at),
+            "updated_at": str(w.updated_at) if hasattr(w, 'updated_at') else None,
+        }
+        for w in workspaces
+    ]
+    await cache_set(_ws_cache_key(current_user), ws_list, ttl=CACHE_TTL)
+
+    return ws_list
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceResponse)

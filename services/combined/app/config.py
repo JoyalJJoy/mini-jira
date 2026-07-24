@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     clerk_jwks_url: str = ""
     clerk_secret_key: str = ""
 
+    # Redis (Upstash)
+    redis_url: str = ""
+
     model_config = {"env_file": ".env"}
 
     def __init__(self, **kwargs):

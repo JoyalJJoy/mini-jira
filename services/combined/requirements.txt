@@ -8,3 +8,4 @@ greenlet
 pydantic-settings
 httpx
 sse-starlette
+redis[hiredis]

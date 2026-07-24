@@ -2,8 +2,9 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from app.config import settings
 from app.models import Base
@@ -11,6 +12,7 @@ from app.db import engine
 from app.routes import auth, users, tasks, projects, comments, tags, events, workspaces, boards, task_extras, sprints, saved_filters, dashboard
 from fastapi import Depends
 from app.deps import get_current_user
+from app.redis_client import connect_redis, close_redis, check_rate_limit
 
 # Ensure all models are imported so create_all discovers them
 from app.models import User, Task, Project, ProjectMember, Workspace, WorkspaceMember, Comment, Tag, TaskTag, Board, Column, ChecklistItem, Attachment, Activity, Sprint, IssueType, SavedFilter  # noqa: F401
@@ -24,6 +26,10 @@ async def lifespan(app: FastAPI):
     logging.info("Database: %s", engine.dialect.name)
     logging.info("Clerk JWKS URL configured: %s", bool(settings.clerk_jwks_url))
     logging.info("Clerk secret key configured: %s", bool(settings.clerk_secret_key))
+    logging.info("Redis URL configured: %s", bool(settings.redis_url))
+
+    # Connect to Redis (Upstash or local)
+    await connect_redis()
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -116,6 +122,7 @@ async def lifespan(app: FastAPI):
                    )
 
     yield
+    await close_redis()
     await engine.dispose()
 
 
@@ -127,6 +134,31 @@ app.add_middleware(
     allow_headers=["*"],
     allow_methods=["*"],
 )
+
+
+# ── Rate limiting middleware ──────────────────────────────────
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Skip rate limiting for health/debug endpoints
+    path = request.url.path
+    if path in ("/health",) or path.startswith("/debug/"):
+        return await call_next(request)
+
+    # Rate limit by IP or user ID
+    client_ip = request.client.host if request.client else "unknown"
+    allowed, remaining = await check_rate_limit(f"ratelimit:{client_ip}", max_requests=200, window=60)
+
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Too many requests. Please slow down."},
+            headers={"Retry-After": "60"},
+        )
+
+    response = await call_next(request)
+    response.headers["X-RateLimit-Remaining"] = str(remaining)
+    return response
+
 
 # Register all route modules
 app.include_router(auth.router)

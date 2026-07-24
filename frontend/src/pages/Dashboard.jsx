@@ -175,15 +175,24 @@ export default function Dashboard() {
     try { setSavedFilters(await getSavedFilters(activeWorkspaceId, activeProjectId)) } catch { /* */ }
   }, [activeWorkspaceId, activeProjectId])
 
-  // ── Initial loads ───────────────────────────────────────────────
+  // ── Initial loads (all wait for Clerk to be ready) ─────────────
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
     loadWorkspaces()
     loadUsers()
   }, [isLoaded, isSignedIn, loadWorkspaces, loadUsers])
 
-  useEffect(() => { loadProjects() }, [loadProjects])
-  useEffect(() => { loadTasks() }, [loadTasks])
+  // Projects load when activeWorkspaceId is available (runs after Clerk is ready)
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+    loadProjects()
+  }, [isLoaded, isSignedIn, loadProjects])
+
+  // Tasks load when activeProjectId is available (runs after Clerk is ready)
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+    loadTasks()
+  }, [isLoaded, isSignedIn, loadTasks])
 
   useEffect(() => {
     if (initialLoad.current && projects.length > 0) {
@@ -193,12 +202,16 @@ export default function Dashboard() {
   }, [projects])
 
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
     loadMembers(activeProjectId)
     loadTags(activeProjectId)
     loadSprints(activeProjectId)
-  }, [activeProjectId, loadMembers, loadTags, loadSprints])
+  }, [isLoaded, isSignedIn, activeProjectId, loadMembers, loadTags, loadSprints])
 
-  useEffect(() => { loadSavedFilters() }, [loadSavedFilters])
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+    loadSavedFilters()
+  }, [isLoaded, isSignedIn, loadSavedFilters])
 
   // ── Real-time SSE ───────────────────────────────────────────────
   const currentUserIdRef = useRef(null)
