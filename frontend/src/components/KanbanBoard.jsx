@@ -44,15 +44,21 @@ export default function KanbanBoard({
 
   // ── Load boards ──────────────────────────────────────────────────
   const loadBoards = useCallback(async () => {
-    if (!projectId) return
+    if (!projectId) {
+      console.log('Kanban: no projectId, skipping board load')
+      return
+    }
     setLoading(true)
     try {
       const data = await getBoards(projectId)
+      console.log('Kanban: boards loaded', data.length, data)
       setBoards(data)
       if (data.length > 0 && !data.find((b) => b.id === activeBoardId)) {
         setActiveBoardId(data[0].id)
       }
-    } catch { /* */ }
+    } catch (err) {
+      console.error('Kanban: failed to load boards', err)
+    }
     setLoading(false)
   }, [projectId, activeBoardId])
 
@@ -60,10 +66,18 @@ export default function KanbanBoard({
 
   // ── Load columns when board changes ───────────────────────────────
   const loadColumns = useCallback(async () => {
-    if (!activeBoardId) { setColumns([]); return }
+    if (!activeBoardId) {
+      console.log('Kanban: no activeBoardId, clearing columns')
+      setColumns([])
+      return
+    }
     try {
-      setColumns(await getColumns(activeBoardId))
-    } catch { /* */ }
+      const cols = await getColumns(activeBoardId)
+      console.log('Kanban: columns loaded', cols.length, cols)
+      setColumns(cols)
+    } catch (err) {
+      console.error('Kanban: failed to load columns', err)
+    }
   }, [activeBoardId])
 
   useEffect(() => { loadColumns() }, [loadColumns])
@@ -127,23 +141,26 @@ export default function KanbanBoard({
     e.preventDefault()
     setDragOverCol(null)
     const task = draggedTask.current
-    if (!task || task.column_id === colId) return
+    if (!task) {
+      console.warn('Kanban: no dragged task — drop ignored')
+      return
+    }
+    if (task.column_id === colId) return
 
+    console.log('Kanban: moving task', task.id, 'to column', colId, 'hasColumns:', hasColumns)
     try {
-      // If using fallback (status-based) columns, update status instead of column_id
+      const targetCol = hasColumns ? columns.find(c => c.id === colId) : null
       const updatePayload = hasColumns
-        ? { column_id: colId }
+        ? { column_id: colId, status: targetCol ? targetCol.name.toLowerCase().replace(/\s+/g, '_') : task.status }
         : { status: colId }
-      // When columns exist, derive the matching status from the column name
-      if (hasColumns) {
-        const targetCol = columns.find(c => c.id === colId)
-        if (targetCol) {
-          updatePayload.status = targetCol.name.toLowerCase().replace(/\s+/g, '_')
-        }
-      }
+
+      console.log('Kanban: PATCH payload', updatePayload)
       const updated = await updateTask(task.id, updatePayload)
+      console.log('Kanban: update response', updated)
       if (onUpdate) onUpdate(updated)
-    } catch { /* */ }
+    } catch (err) {
+      console.error('Kanban: task move failed', err)
+    }
   }
 
   // ── Column drag & drop ──────────────────────────────────────────
@@ -184,13 +201,21 @@ export default function KanbanBoard({
   // ── Add column ───────────────────────────────────────────────────
   const handleAddColumn = async (e) => {
     e.preventDefault()
-    if (!newColName.trim() || !activeBoardId) return
+    if (!newColName.trim() || !activeBoardId) {
+      console.warn('Kanban: cannot add column — missing name or boardId', { name: newColName, boardId: activeBoardId })
+      return
+    }
+    console.log('Kanban: creating column', { boardId: activeBoardId, name: newColName, wip: newColWip })
     try {
       const col = await createColumn(activeBoardId, newColName, newColWip ? parseInt(newColWip) : null)
+      console.log('Kanban: column created', col)
       setColumns((prev) => [...prev, col])
       setNewColName(''); setNewColWip(''); setAddingColumn(false)
       toast('Column added')
-    } catch (err) { toast(err.message, 'error') }
+    } catch (err) {
+      console.error('Kanban: column creation failed', err)
+      toast(err.message, 'error')
+    }
   }
 
   // ── Rename column ────────────────────────────────────────────────
