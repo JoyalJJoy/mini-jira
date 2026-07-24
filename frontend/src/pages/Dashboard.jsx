@@ -43,6 +43,7 @@ export default function Dashboard() {
   const [selectedTagIds, setSelectedTagIds] = useState([])
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
+  const [creatingTask, setCreatingTask] = useState(false)
   const [viewMode, setViewMode] = useState('kanban')
   const [commentsByTask, setCommentsByTask] = useState({})
   const [expandedComments, setExpandedComments] = useState({})
@@ -228,14 +229,16 @@ export default function Dashboard() {
   // ── Task actions ────────────────────────────────────────────────
   const handleCreate = async (e) => {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!title.trim() || creatingTask) return
     setError('')
+    setCreatingTask(true)
     try {
       const task = await createTask(title, null, priority, activeProjectId, assigneeId || null, dueDate || null, selectedTagIds, issueType)
       setTasks((prev) => [task, ...prev])
       setTitle(''); setDueDate(''); setSelectedTagIds([]); setIssueType('task')
       toast('Task created!')
     } catch (err) { setError(err.message) }
+    finally { setCreatingTask(false) }
   }
 
   const handleDelete = async (id) => {
@@ -676,8 +679,15 @@ export default function Dashboard() {
               </select>
             )}
 
-            <button type="submit"
-              className="h-9 rounded-lg bg-blue-600 text-white px-4 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm">Add</button>
+            <button type="submit" disabled={creatingTask}
+              className="h-9 rounded-lg bg-blue-600 text-white px-4 text-sm font-medium hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+              {creatingTask ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Adding...
+                </span>
+              ) : 'Add'}
+            </button>
           </form>
         </div>
 
