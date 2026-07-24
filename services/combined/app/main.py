@@ -148,48 +148,45 @@ async def health():
 
 
 # ── Debug endpoint — check user data in DB ─────────────────────────
-@app.get("/debug/user/{user_id}")
-async def debug_user(user_id: str):
-    """Check what data exists for a given user in the database."""
+@app.get("/debug/me")
+async def debug_me(current_user: str = Depends(get_current_user)):
+    """Check what data exists for the authenticated user."""
     from app.models import User, Workspace, WorkspaceMember, Project, ProjectMember
-    from sqlalchemy import select, func
-
-    results = {}
+    from sqlalchemy import select
 
     async with engine.connect() as conn:
-        # Check user
-        u = await conn.execute(select(User).where(User.id == user_id))
-        u_row = u.mappings().first()
-        results["user"] = dict(u_row) if u_row else None
+        u = await conn.execute(select(User).where(User.id == current_user))
+        user_row = u.mappings().first()
 
-        # Check workspaces
         ws_ids = await conn.execute(
-            select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user_id)
+            select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == current_user)
         )
         ws_ids_list = [r[0] for r in ws_ids.fetchall()]
-        results["workspace_ids"] = ws_ids_list
 
+        ws_list = []
         if ws_ids_list:
             ws = await conn.execute(
                 select(Workspace).where(Workspace.id.in_(ws_ids_list))
             )
-            results["workspaces"] = [dict(r) for r in ws.mappings().all()]
-        else:
-            results["workspaces"] = []
+            ws_list = [dict(r, created_at=str(r.created_at), updated_at=str(r.updated_at) if hasattr(r, 'updated_at') else None) for r in ws.mappings().all()]
 
-        # Check projects
         p_ids = await conn.execute(
-            select(ProjectMember.project_id).where(ProjectMember.user_id == user_id)
+            select(ProjectMember.project_id).where(ProjectMember.user_id == current_user)
         )
         p_ids_list = [r[0] for r in p_ids.fetchall()]
-        results["project_ids"] = p_ids_list
 
+        proj_list = []
         if p_ids_list:
             projs = await conn.execute(
                 select(Project).where(Project.id.in_(p_ids_list))
             )
-            results["projects"] = [dict(r) for r in projs.mappings().all()]
-        else:
-            results["projects"] = []
+            proj_list = [dict(r, created_at=str(r.created_at), updated_at=str(r.updated_at) if hasattr(r, 'updated_at') else None) for r in projs.mappings().all()]
 
-    return results
+    return {
+        "user_id": current_user,
+        "user_exists_in_db": user_row is not None,
+        "workspace_ids": ws_ids_list,
+        "workspaces": ws_list,
+        "project_ids": p_ids_list,
+        "projects": proj_list,
+    }
