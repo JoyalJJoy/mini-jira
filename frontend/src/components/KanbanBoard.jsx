@@ -71,7 +71,7 @@ export default function KanbanBoard({
   // ── Ensure tasks with no column_id get assigned ──────────────────
   useEffect(() => {
     if (columns.length === 0 || !activeBoardId) return
-    const firstCol = columns.sort((a, b) => a.position - b.position)[0]
+    const firstCol = [...columns].sort((a, b) => a.position - b.position)[0]
     if (!firstCol) return
 
     for (const task of tasks) {
@@ -82,10 +82,15 @@ export default function KanbanBoard({
                  task.status.replace('_', '').includes(c.name.toLowerCase().slice(0, 3))
         )
         const targetCol = match || firstCol
+        // Also sync status to match the column
+        const statusMatch = columns.find(c => c.id === targetCol.id)
+        const syncStatus = statusMatch
+          ? statusMatch.name.toLowerCase().replace(' ', '_')
+          : task.status
         // Optimistic local update so the task shows in the column immediately
-        onUpdate?.({ ...task, column_id: targetCol.id })
-        // Persist
-        updateTask(task.id, { column_id: targetCol.id }).catch(() => {})
+        onUpdate?.({ ...task, column_id: targetCol.id, status: syncStatus })
+        // Persist — update both column_id and status for consistency
+        updateTask(task.id, { column_id: targetCol.id, status: syncStatus }).catch(() => {})
       }
     }
   }, [columns, activeBoardId, tasks])
@@ -125,7 +130,18 @@ export default function KanbanBoard({
     if (!task || task.column_id === colId) return
 
     try {
-      const updated = await updateTask(task.id, { column_id: colId })
+      // If using fallback (status-based) columns, update status instead of column_id
+      const updatePayload = hasColumns
+        ? { column_id: colId }
+        : { status: colId }
+      // When columns exist, derive the matching status from the column name
+      if (hasColumns) {
+        const targetCol = columns.find(c => c.id === colId)
+        if (targetCol) {
+          updatePayload.status = targetCol.name.toLowerCase().replace(/\s+/g, '_')
+        }
+      }
+      const updated = await updateTask(task.id, updatePayload)
       if (onUpdate) onUpdate(updated)
     } catch { /* */ }
   }
