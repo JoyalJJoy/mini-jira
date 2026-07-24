@@ -2,11 +2,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "Mini Jira"
+    app_name: str = "Kippa"
     app_version: str = "1.0.0"
     debug: bool = False
 
-    database_url: str = "sqlite+aiosqlite:///./mini_jira.db"
+    database_url: str = "sqlite+aiosqlite:///./kippa.db"
 
     secret_key: str = "change-me-in-production-use-openssl-rand-hex-32"
     algorithm: str = "HS256"

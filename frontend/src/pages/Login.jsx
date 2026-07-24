@@ -20,7 +20,7 @@ export default function Login() {
           <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
             <CheckCircle className="w-5 h-5 text-white" />
           </div>
-          <span className="text-xl font-bold text-slate-900">Mini Jira</span>
+          <span className="text-xl font-bold text-slate-900">Kippa</span>
         </div>
 
         <SignIn

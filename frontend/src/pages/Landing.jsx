@@ -226,7 +226,7 @@ export default function Landing() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <CheckCircle className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">Mini Jira</span>
+            <span className="text-lg font-bold text-white tracking-tight">Kippa</span>
           </div>
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/login')}
@@ -267,7 +267,7 @@ export default function Landing() {
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Mini Jira helps teams track tasks, collaborate in real-time, and ship projects — without the bloat.
+            Kippa helps teams track tasks, collaborate in real-time, and ship projects — without the bloat.
           </p>
 
           {/* CTA */}
@@ -352,7 +352,7 @@ export default function Landing() {
             <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
               <CheckCircle className="w-3.5 h-3.5 text-white" />
             </div>
-            Mini Jira
+            Kippa
           </div>
           <p className="text-xs text-slate-600">Built for learning microservices architecture</p>
         </div>

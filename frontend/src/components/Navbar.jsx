@@ -20,7 +20,7 @@ export default function Navbar({
           <CheckCircle className="w-4 h-4 text-white" />
         </div>
         <span className="text-base font-semibold text-slate-900 dark:text-slate-100 hidden sm:block shrink-0">
-          Mini Jira
+          Kippa
         </span>
         <WorkspaceSwitcher
           activeWorkspaceId={activeWorkspaceId}
