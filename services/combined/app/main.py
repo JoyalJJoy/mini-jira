@@ -146,10 +146,31 @@ app.include_router(dashboard.router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from app.config import settings
+    db_type = settings.database_url.split("://")[0]
+    return {
+        "status": "ok",
+        "db_type": db_type,
+        "db_url_prefix": settings.database_url.split("://")[0] + "://" + settings.database_url.split("://")[1][:8] + "..." if "://" in settings.database_url else "unknown",
+    }
 
 
-# ── Debug endpoint — check user data in DB ─────────────────────────
+# ── Debug endpoints — check user data in DB ─────────────────────────
+@app.get("/debug/db")
+async def debug_db():
+    """Check database tables and row counts (no auth required)."""
+    from app.models import User, Workspace, WorkspaceMember, Project, ProjectMember, Task
+    from sqlalchemy import func, select
+
+    async with engine.connect() as conn:
+        tables = {}
+        for model in [User, Workspace, WorkspaceMember, Project, ProjectMember, Task]:
+            name = model.__tablename__
+            count = await conn.execute(select(func.count()).select_from(model))
+            tables[name] = count.scalar()
+        return {"row_counts": tables}
+
+
 @app.get("/debug/me")
 async def debug_me(current_user: str = Depends(get_current_user)):
     """Check what data exists for the authenticated user."""
