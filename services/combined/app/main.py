@@ -31,6 +31,37 @@ async def lifespan(app: FastAPI):
         # from create_all since it's a fresh managed database.
         dialect = engine.dialect.name  # "sqlite" or "postgresql"
 
+        if dialect == "postgresql":
+            # ── Migration: fix timestamp columns to use WITH TIME ZONE ──
+            # SQLAlchemy's DateTime (no timezone) maps to TIMESTAMP WITHOUT TIME ZONE
+            # but our default values use timezone-aware datetimes. Fix: switch to
+            # TIMESTAMP WITH TIME ZONE.
+            ts_tables = {
+                "users": ["created_at"],
+                "tasks": ["created_at", "updated_at", "due_date"],
+                "checklist_items": ["created_at"],
+                "attachments": ["created_at"],
+                "activities": ["created_at"],
+                "sprints": ["created_at", "start_date", "end_date"],
+                "saved_filters": ["created_at", "updated_at"],
+                "workspaces": ["created_at", "updated_at"],
+                "workspace_members": ["created_at"],
+                "projects": ["created_at", "updated_at"],
+                "boards": ["created_at"],
+                "columns": ["created_at"],
+                "project_members": ["created_at"],
+                "comments": ["created_at", "updated_at"],
+            }
+            for tbl, cols in ts_tables.items():
+                for col in cols:
+                    try:
+                        await conn.execute(text(
+                            f'ALTER TABLE {tbl} ALTER COLUMN {col} TYPE TIMESTAMP WITH TIME ZONE '
+                            f'USING {col} AT TIME ZONE \'UTC\''
+                        ))
+                    except Exception:
+                        pass  # column already correct type
+
         if dialect == "sqlite":
             # ── Migration: add columns for existing projects ──────
             migrations = [
